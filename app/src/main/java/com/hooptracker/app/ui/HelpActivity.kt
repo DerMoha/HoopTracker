@@ -35,6 +35,7 @@ class HelpActivity : AppCompatActivity() {
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -47,6 +48,9 @@ class HelpActivity : AppCompatActivity() {
             color: #FF6B35;
             font-size: 28px;
             margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         h2 {
             color: #004E89;
@@ -54,6 +58,9 @@ class HelpActivity : AppCompatActivity() {
             margin-top: 24px;
             border-bottom: 2px solid #FF6B35;
             padding-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         h3 {
             color: #FF6B35;
@@ -80,6 +87,8 @@ class HelpActivity : AppCompatActivity() {
             margin: 8px 0;
             border-radius: 4px;
             border-left: 4px solid #FF9800;
+            display: flex;
+            gap: 8px;
         }
         .warning {
             background: #FFEBEE;
@@ -87,9 +96,27 @@ class HelpActivity : AppCompatActivity() {
             margin: 8px 0;
             border-radius: 4px;
             border-left: 4px solid #F44336;
+            display: flex;
+            gap: 8px;
         }
-        .emoji {
+        .material-icons {
+            font-size: 24px;
+            vertical-align: middle;
+        }
+        .material-icons.small {
             font-size: 20px;
+        }
+        .icon-fire {
+            color: #FF5722;
+        }
+        .icon-cold {
+            color: #2196F3;
+        }
+        .icon-tip {
+            color: #FF9800;
+        }
+        .icon-warning {
+            color: #F44336;
         }
         ul {
             padding-left: 20px;
@@ -112,14 +139,19 @@ class HelpActivity : AppCompatActivity() {
             font-family: monospace;
             font-size: 14px;
         }
+        .flex-icon {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
     </style>
 </head>
 <body>
 
-<h1>🏀 HoopTracker Guide</h1>
+<h1><span class="material-icons">sports_basketball</span>HoopTracker Guide</h1>
 
 <div class="section">
-    <h2>🚀 Quick Start</h2>
+    <h2><span class="material-icons">rocket_launch</span>Quick Start</h2>
     <ol>
         <li>Tap <b>"Start Voice Tracking"</b></li>
         <li>Connect your <b>Bluetooth headphones</b> (optional)</li>
@@ -127,12 +159,13 @@ class HelpActivity : AppCompatActivity() {
         <li>Say <b>"hit"</b> or <b>"miss"</b> after each shot</li>
     </ol>
     <div class="tip">
-        <b>💡 Tip:</b> The app works great with music playing. Your tunes won't be interrupted!
+        <span class="material-icons icon-tip">tips_and_updates</span>
+        <div><b>Tip:</b> The app works great with music playing. Your tunes won't be interrupted!</div>
     </div>
 </div>
 
 <div class="section">
-    <h2>🎤 Voice Commands</h2>
+    <h2><span class="material-icons">mic</span>Voice Commands</h2>
 
     <h3>Basic Commands</h3>
     <div class="command"><b>To record a MAKE:</b><br>
@@ -155,11 +188,11 @@ class HelpActivity : AppCompatActivity() {
 </div>
 
 <div class="section">
-    <h2>📊 Understanding Your Stats</h2>
+    <h2><span class="material-icons">bar_chart</span>Understanding Your Stats</h2>
 
     <h3>Streak Display</h3>
-    <p><span class="emoji">🔥</span> = Hot streak (consecutive makes)<br>
-    <span class="emoji">❄️</span> = Cold streak (consecutive misses)</p>
+    <p><span class="material-icons small icon-fire">local_fire_department</span> = Hot streak (consecutive makes)<br>
+    <span class="material-icons small icon-cold">ac_unit</span> = Cold streak (consecutive misses)</p>
 
     <h3>Time Periods</h3>
     <ul>
@@ -180,7 +213,7 @@ class HelpActivity : AppCompatActivity() {
 </div>
 
 <div class="section">
-    <h2>⚙️ Settings Explained</h2>
+    <h2><span class="material-icons">settings</span>Settings Explained</h2>
 
     <h3>Haptic Feedback</h3>
     <p><b>ON:</b> Phone vibrates when you record a shot</p>
@@ -203,23 +236,25 @@ class HelpActivity : AppCompatActivity() {
 </div>
 
 <div class="section">
-    <h2>🎯 Using Shot Types</h2>
+    <h2><span class="material-icons">gps_fixed</span>Using Shot Types</h2>
 
     <p>Track different parts of your game separately:</p>
 
     <div class="tip">
-        <b>Example Practice:</b><br>
+        <span class="material-icons icon-tip">tips_and_updates</span>
+        <div><b>Example Practice:</b><br>
         1. Select "Free Throw"<br>
         2. Shoot 50 free throws<br>
         3. Check your FT percentage<br>
         4. Switch to "3-Pointer"<br>
         5. Practice three-pointers<br>
         6. Compare your stats!
+        </div>
     </div>
 </div>
 
 <div class="section">
-    <h2>📖 Shot History</h2>
+    <h2><span class="material-icons">history</span>Shot History</h2>
 
     <p>Access via the <b>history icon</b> (clock) at the top</p>
 
@@ -230,27 +265,29 @@ class HelpActivity : AppCompatActivity() {
     </ul>
 
     <div class="warning">
-        <b>⚠️ Warning:</b> Deleted shots cannot be recovered!
+        <span class="material-icons icon-warning">warning</span>
+        <div><b>Warning:</b> Deleted shots cannot be recovered!</div>
     </div>
 </div>
 
 <div class="section">
-    <h2>↶ Undo Feature</h2>
+    <h2><span class="material-icons">undo</span>Undo Feature</h2>
 
     <p>Made a mistake? Three ways to undo:</p>
     <ol>
-        <li>Tap the <b>↶ Undo</b> button</li>
+        <li>Tap the <b>Undo</b> button</li>
         <li>Say <b>"undo"</b> via voice</li>
         <li>Tap <b>"Undo"</b> in the notification</li>
     </ol>
 
     <div class="tip">
-        <b>💡 Note:</b> Only removes the LAST shot recorded
+        <span class="material-icons icon-tip">tips_and_updates</span>
+        <div><b>Note:</b> Only removes the LAST shot recorded</div>
     </div>
 </div>
 
 <div class="section">
-    <h2>📤 Exporting Your Data</h2>
+    <h2><span class="material-icons">file_download</span>Exporting Your Data</h2>
 
     <ol>
         <li>Tap <b>"Export CSV"</b> button</li>
@@ -268,7 +305,7 @@ class HelpActivity : AppCompatActivity() {
 </div>
 
 <div class="section">
-    <h2>🔥 Practice Plans</h2>
+    <h2><span class="material-icons">local_fire_department</span>Practice Plans</h2>
 
     <h3>Plan 1: Form Focus (30 min)</h3>
     <ul>
@@ -300,31 +337,35 @@ class HelpActivity : AppCompatActivity() {
 </div>
 
 <div class="section">
-    <h2>💡 Tips & Tricks</h2>
+    <h2><span class="material-icons">tips_and_updates</span>Tips & Tricks</h2>
 
     <div class="tip">
-        <b>Use Bluetooth Headphones</b><br>
-        Better voice recognition and your music keeps playing!
+        <span class="material-icons icon-tip">bluetooth</span>
+        <div><b>Use Bluetooth Headphones</b><br>
+        Better voice recognition and your music keeps playing!</div>
     </div>
 
     <div class="tip">
-        <b>Speak Clearly</b><br>
-        No need to shout - just speak normally and wait for confirmation
+        <span class="material-icons icon-tip">record_voice_over</span>
+        <div><b>Speak Clearly</b><br>
+        No need to shout - just speak normally and wait for confirmation</div>
     </div>
 
     <div class="tip">
-        <b>Track Consistently</b><br>
-        Use the app every practice to see real improvement over time
+        <span class="material-icons icon-tip">trending_up</span>
+        <div><b>Track Consistently</b><br>
+        Use the app every practice to see real improvement over time</div>
     </div>
 
     <div class="tip">
-        <b>Set Realistic Goals</b><br>
-        Start with achievable targets and increase as you improve
+        <span class="material-icons icon-tip">flag</span>
+        <div><b>Set Realistic Goals</b><br>
+        Start with achievable targets and increase as you improve</div>
     </div>
 </div>
 
 <div class="section">
-    <h2>🔧 Troubleshooting</h2>
+    <h2><span class="material-icons">build</span>Troubleshooting</h2>
 
     <h3>Voice Not Working?</h3>
     <ul>
@@ -351,7 +392,7 @@ class HelpActivity : AppCompatActivity() {
 </div>
 
 <div class="section">
-    <h2>📋 Quick Reference</h2>
+    <h2><span class="material-icons">list</span>Quick Reference</h2>
     <div class="cheat-sheet">
 <b>VOICE COMMANDS</b>
 ━━━━━━━━━━━━━━━━━━━━
@@ -373,41 +414,42 @@ Undo:  undo | cancel
 
 <b>BUTTONS</b>
 ━━━━━━━━━━━━━━━━━━━━
-✓ Hit    - Record make
-✗ Miss   - Record miss
-↶ Undo   - Remove last
-🕐 History - View shots
-⚙️ Settings - Customize
-📤 Export  - Download CSV
+Hit      - Record make
+Miss     - Record miss
+Undo     - Remove last
+History  - View shots
+Settings - Customize
+Export   - Download CSV
     </div>
 </div>
 
 <div class="section">
-    <h2>🔒 Privacy</h2>
+    <h2><span class="material-icons">lock</span>Privacy</h2>
 
     <p><b>Your data is 100% private:</b></p>
     <ul>
-        <li>✅ Stored only on your phone</li>
-        <li>✅ No internet required</li>
-        <li>✅ No tracking or analytics</li>
-        <li>✅ No ads</li>
-        <li>✅ No account needed</li>
+        <li><span class="material-icons small" style="color: #4CAF50;">check_circle</span> Stored only on your phone</li>
+        <li><span class="material-icons small" style="color: #4CAF50;">check_circle</span> No internet required</li>
+        <li><span class="material-icons small" style="color: #4CAF50;">check_circle</span> No tracking or analytics</li>
+        <li><span class="material-icons small" style="color: #4CAF50;">check_circle</span> No ads</li>
+        <li><span class="material-icons small" style="color: #4CAF50;">check_circle</span> No account needed</li>
     </ul>
 
     <div class="tip">
-        <b>Backup Tip:</b> Export your data regularly to keep a backup!
+        <span class="material-icons icon-tip">backup</span>
+        <div><b>Backup Tip:</b> Export your data regularly to keep a backup!</div>
     </div>
 </div>
 
 <div class="section" style="text-align: center; margin-top: 32px;">
-    <h2>🏀 Now Go Practice!</h2>
+    <h2><span class="material-icons">sports_basketball</span>Now Go Practice!</h2>
     <p style="font-size: 18px; color: #004E89;">
         The app tracks the stats,<br>
         but <b>YOU</b> make the shots!
     </p>
     <p style="color: #757575; margin-top: 16px;">
         Practice consistently, track honestly,<br>
-        and watch yourself improve! 🔥
+        and watch yourself improve!
     </p>
 </div>
 
