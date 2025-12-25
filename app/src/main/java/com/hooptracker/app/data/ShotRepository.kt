@@ -1,24 +1,56 @@
 package com.hooptracker.app.data
 
+import android.content.Context
 import kotlinx.coroutines.flow.Flow
+import java.io.File
+import java.text.SimpleDateFormat
 import java.util.*
 
-class ShotRepository(private val shotDao: ShotDao) {
+class ShotRepository(
+    private val shotDao: ShotDao,
+    private val sessionDao: SessionDao,
+    private val goalDao: GoalDao,
+    private val context: Context
+) {
 
     val allShots: Flow<List<Shot>> = shotDao.getAllShots()
+    val allSessions: Flow<List<Session>> = sessionDao.getAllSessions()
+    val allGoals: Flow<List<Goal>> = goalDao.getAllGoals()
 
+    private var lastShotId: Long? = null
+
+    // Shot operations
     suspend fun insert(shot: Shot): Long {
-        return shotDao.insert(shot)
+        val id = shotDao.insert(shot)
+        lastShotId = id
+        return id
     }
 
-    suspend fun recordHit() {
-        insert(Shot(isHit = true))
+    suspend fun recordHit(sessionId: Long? = null, shotType: ShotType = ShotType.GENERAL) {
+        insert(Shot(isHit = true, sessionId = sessionId, shotType = shotType.name))
     }
 
-    suspend fun recordMiss() {
-        insert(Shot(isHit = false))
+    suspend fun recordMiss(sessionId: Long? = null, shotType: ShotType = ShotType.GENERAL) {
+        insert(Shot(isHit = false, sessionId = sessionId, shotType = shotType.name))
     }
 
+    suspend fun undoLastShot(): Boolean {
+        return lastShotId?.let { id ->
+            shotDao.deleteById(id)
+            lastShotId = null
+            true
+        } ?: false
+    }
+
+    suspend fun deleteShot(shotId: Long) {
+        shotDao.deleteById(shotId)
+    }
+
+    suspend fun getLastShot(): Shot? = shotDao.getLastShot()
+
+    suspend fun getRecentShots(limit: Int): List<Shot> = shotDao.getRecentShots(limit)
+
+    // Statistics
     suspend fun getStats(startTime: Long, endTime: Long): ShotStats {
         val hits = shotDao.getHitsCount(startTime, endTime)
         val misses = shotDao.getMissesCount(startTime, endTime)
@@ -110,8 +142,152 @@ class ShotRepository(private val shotDao: ShotDao) {
         return result
     }
 
+    // Stats by shot type
+    suspend fun getStatsByType(shotType: ShotType, startTime: Long, endTime: Long): ShotStats {
+        val hits = shotDao.getHitsCountByType(shotType.name, startTime, endTime)
+        val total = shotDao.getTotalShotsCountByType(shotType.name, startTime, endTime)
+        val misses = total - hits
+        val percentage = if (total > 0) (hits.toFloat() / total.toFloat() * 100) else 0f
+
+        return ShotStats(hits, misses, total, percentage)
+    }
+
+    suspend fun getAllTypeStats(startTime: Long, endTime: Long): Map<ShotType, ShotStats> {
+        val result = mutableMapOf<ShotType, ShotStats>()
+        ShotType.values().forEach { type ->
+            result[type] = getStatsByType(type, startTime, endTime)
+        }
+        return result
+    }
+
+    // Streak tracking
+    suspend fun getCurrentStreak(): StreakInfo {
+        val recent = shotDao.getRecentShots(100)
+        if (recent.isEmpty()) {
+            return StreakInfo(0, true)
+        }
+
+        var streak = 0
+        val isHitStreak = recent.first().isHit
+
+        for (shot in recent) {
+            if (shot.isHit == isHitStreak) {
+                streak++
+            } else {
+                break
+            }
+        }
+
+        return StreakInfo(streak, isHitStreak)
+    }
+
+    // Session management
+    suspend fun startSession(): Long {
+        val session = Session()
+        return sessionDao.insert(session)
+    }
+
+    suspend fun endSession(sessionId: Long, notes: String? = null): Session? {
+        val session = sessionDao.getSessionById(sessionId)
+        return session?.let {
+            val updated = it.copy(
+                endTime = System.currentTimeMillis(),
+                isActive = false,
+                notes = notes
+            )
+            sessionDao.update(updated)
+            updated
+        }
+    }
+
+    suspend fun getActiveSession(): Session? = sessionDao.getActiveSession()
+
+    suspend fun getSessionById(sessionId: Long): Session? = sessionDao.getSessionById(sessionId)
+
+    suspend fun getShotsBySession(sessionId: Long): List<Shot> =
+        shotDao.getShotsBySession(sessionId)
+
+    suspend fun getSessionStats(sessionId: Long): SessionStats {
+        val shots = getShotsBySession(sessionId)
+        val hits = shots.count { it.isHit }
+        val total = shots.size
+        val misses = total - hits
+        val percentage = if (total > 0) (hits.toFloat() / total.toFloat() * 100) else 0f
+
+        val session = getSessionById(sessionId)
+        return SessionStats(
+            session = session,
+            stats = ShotStats(hits, misses, total, percentage),
+            totalShots = total
+        )
+    }
+
+    // Goal management
+    suspend fun getTodayGoal(): Goal {
+        val today = Goal.getTodayStart()
+        return goalDao.getGoalForDate(today) ?: Goal(date = today).also {
+            goalDao.insert(it)
+        }
+    }
+
+    suspend fun updateTodayGoal(targetShots: Int, targetPercentage: Float) {
+        val goal = getTodayGoal()
+        val updated = goal.copy(targetShots = targetShots, targetPercentage = targetPercentage)
+        goalDao.update(updated)
+    }
+
+    suspend fun getTodayGoalProgress(): GoalProgress {
+        val goal = getTodayGoal()
+        val stats = getTodayStats()
+
+        val shotsProgress = if (goal.targetShots > 0) {
+            (stats.total.toFloat() / goal.targetShots.toFloat() * 100).coerceAtMost(100f)
+        } else 100f
+
+        val percentageProgress = if (goal.targetPercentage > 0 && stats.total > 0) {
+            (stats.percentage / goal.targetPercentage * 100).coerceAtMost(100f)
+        } else 0f
+
+        return GoalProgress(
+            goal = goal,
+            currentShots = stats.total,
+            currentPercentage = stats.percentage,
+            shotsProgress = shotsProgress,
+            percentageProgress = percentageProgress
+        )
+    }
+
+    // Export to CSV
+    suspend fun exportToCSV(): File {
+        val shots = shotDao.getRecentShots(10000) // Get all shots
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+
+        val csv = StringBuilder()
+        csv.append("Timestamp,Date,Result,Shot Type,Session ID\n")
+
+        shots.reversed().forEach { shot ->
+            csv.append("${shot.timestamp},")
+            csv.append("\"${dateFormat.format(shot.getDate())}\",")
+            csv.append("${if (shot.isHit) "Hit" else "Miss"},")
+            csv.append("${shot.getShotType()},")
+            csv.append("${shot.sessionId ?: ""}\n")
+        }
+
+        val fileName = "hooptracker_export_${System.currentTimeMillis()}.csv"
+        val file = File(context.getExternalFilesDir(null), fileName)
+        file.writeText(csv.toString())
+
+        return file
+    }
+
+    // Clear data
     suspend fun deleteAll() {
         shotDao.deleteAll()
+        sessionDao.deleteAll()
+    }
+
+    suspend fun deleteSession(sessionId: Long) {
+        sessionDao.deleteById(sessionId)
     }
 }
 
@@ -125,4 +301,15 @@ data class ShotStats(
 data class DailyStats(
     val date: Date,
     val stats: ShotStats
+)
+
+data class StreakInfo(
+    val count: Int,
+    val isHitStreak: Boolean
+)
+
+data class SessionStats(
+    val session: Session?,
+    val stats: ShotStats,
+    val totalShots: Int
 )

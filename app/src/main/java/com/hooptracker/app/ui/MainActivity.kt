@@ -6,7 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
-import android.graphics.Color
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
@@ -17,6 +17,7 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.BarData
 import com.github.mikephil.charting.data.BarDataSet
@@ -24,6 +25,7 @@ import com.github.mikephil.charting.data.BarEntry
 import com.github.mikephil.charting.formatter.ValueFormatter
 import com.hooptracker.app.HoopTrackerApplication
 import com.hooptracker.app.R
+import com.hooptracker.app.data.ShotType
 import com.hooptracker.app.databinding.ActivityMainBinding
 import com.hooptracker.app.service.ShotTrackingService
 import java.text.SimpleDateFormat
@@ -39,12 +41,15 @@ class MainActivity : AppCompatActivity() {
     private var trackingService: ShotTrackingService? = null
     private var isServiceBound = false
     private var isTracking = false
+    private var currentSessionId: Long? = null
+    private var currentShotType = ShotType.GENERAL
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             val binder = service as ShotTrackingService.LocalBinder
             trackingService = binder.getService()
             trackingService?.setRepository((application as HoopTrackerApplication).repository)
+            trackingService?.setPreferences((application as HoopTrackerApplication).preferences)
             isServiceBound = true
         }
 
@@ -76,6 +81,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupUI() {
+        // Navigation buttons
+        binding.btnHistory.setOnClickListener {
+            startActivity(Intent(this, ShotHistoryActivity::class.java))
+        }
+
+        binding.btnSettings.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
+
+        // Tracking button
         binding.btnStartTracking.setOnClickListener {
             if (isTracking) {
                 stopTrackingService()
@@ -84,36 +99,64 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        // Manual entry
         binding.btnManualHit.setOnClickListener {
-            viewModel.recordHit()
+            viewModel.recordHit(currentSessionId, currentShotType)
         }
 
         binding.btnManualMiss.setOnClickListener {
-            viewModel.recordMiss()
+            viewModel.recordMiss(currentSessionId, currentShotType)
         }
 
+        // Undo button
+        binding.btnUndo.setOnClickListener {
+            viewModel.undoLastShot()
+            Toast.makeText(this, "Shot undone", Toast.LENGTH_SHORT).show()
+        }
+
+        // Export button
+        binding.btnExport.setOnClickListener {
+            viewModel.exportToCSV()
+        }
+
+        // Clear data
         binding.btnClearData.setOnClickListener {
             showClearDataDialog()
         }
 
-        binding.chipToday.setOnClickListener {
-            updateSelectedPeriod("today")
+        // Period selection
+        binding.chipToday.setOnClickListener { updateSelectedPeriod("today") }
+        binding.chipWeek.setOnClickListener { updateSelectedPeriod("week") }
+        binding.chipMonth.setOnClickListener { updateSelectedPeriod("month") }
+        binding.chipYear.setOnClickListener { updateSelectedPeriod("year") }
+
+        // Shot type selection
+        binding.chipGeneral.setOnClickListener {
+            currentShotType = ShotType.GENERAL
+            updateServiceShotType()
+        }
+        binding.chip3PT.setOnClickListener {
+            currentShotType = ShotType.THREE_POINTER
+            updateServiceShotType()
+        }
+        binding.chipMidRange.setOnClickListener {
+            currentShotType = ShotType.MID_RANGE
+            updateServiceShotType()
+        }
+        binding.chipLayup.setOnClickListener {
+            currentShotType = ShotType.LAYUP
+            updateServiceShotType()
+        }
+        binding.chipFT.setOnClickListener {
+            currentShotType = ShotType.FREE_THROW
+            updateServiceShotType()
         }
 
-        binding.chipWeek.setOnClickListener {
-            updateSelectedPeriod("week")
-        }
-
-        binding.chipMonth.setOnClickListener {
-            updateSelectedPeriod("month")
-        }
-
-        binding.chipYear.setOnClickListener {
-            updateSelectedPeriod("year")
-        }
-
-        // Default selection
         updateSelectedPeriod("today")
+    }
+
+    private fun updateServiceShotType() {
+        trackingService?.setShotType(currentShotType)
     }
 
     private fun observeData() {
@@ -140,16 +183,31 @@ class MainActivity : AppCompatActivity() {
         viewModel.monthlyChartData.observe(this) { data ->
             updateChart(data, "month")
         }
+
+        viewModel.currentStreak.observe(this) { streak ->
+            binding.tvStreak.text = "${streak.count} ${if (streak.isHitStreak) "🔥 Makes" else "❄️ Misses"}"
+            binding.tvStreak.setTextColor(
+                if (streak.isHitStreak)
+                    ContextCompat.getColor(this, R.color.success)
+                else
+                    ContextCompat.getColor(this, R.color.error)
+            )
+        }
+
+        viewModel.exportFile.observe(this) { file ->
+            file?.let {
+                shareCSVFile(it)
+                viewModel.clearExportFile()
+            }
+        }
     }
 
     private fun updateSelectedPeriod(period: String) {
-        // Update chip selection
         binding.chipToday.isChecked = period == "today"
         binding.chipWeek.isChecked = period == "week"
         binding.chipMonth.isChecked = period == "month"
         binding.chipYear.isChecked = period == "year"
 
-        // Update display based on current data
         when (period) {
             "today" -> viewModel.todayStats.value?.let { updateStatsDisplay(it, period) }
             "week" -> {
@@ -179,8 +237,6 @@ class MainActivity : AppCompatActivity() {
         binding.tvMisses.text = stats.misses.toString()
         binding.tvTotal.text = stats.total.toString()
         binding.tvPercentage.text = String.format("%.1f%%", stats.percentage)
-
-        // Update circular progress
         binding.progressCircular.progress = stats.percentage.toInt()
     }
 
@@ -252,9 +308,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkPermissionsAndStart() {
-        val permissions = mutableListOf(
-            Manifest.permission.RECORD_AUDIO
-        )
+        val permissions = mutableListOf(Manifest.permission.RECORD_AUDIO)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             permissions.add(Manifest.permission.BLUETOOTH_CONNECT)
@@ -276,6 +330,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startTrackingService() {
+        // Start session if auto-start enabled
+        val prefs = (application as HoopTrackerApplication).preferences
+        if (prefs.autoStartSession) {
+            viewModel.startSession().observe(this) { sessionId ->
+                currentSessionId = sessionId
+                trackingService?.setSessionId(sessionId)
+            }
+        }
+
         val intent = Intent(this, ShotTrackingService::class.java)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -286,7 +349,6 @@ class MainActivity : AppCompatActivity() {
 
         bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
 
-        // Start tracking after binding
         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
             trackingService?.startTracking()
         }, 500)
@@ -301,6 +363,12 @@ class MainActivity : AppCompatActivity() {
         if (isServiceBound) {
             unbindService(serviceConnection)
             isServiceBound = false
+        }
+
+        // End session if one is active
+        currentSessionId?.let { sessionId ->
+            viewModel.endSession(sessionId)
+            currentSessionId = null
         }
 
         isTracking = false
@@ -324,6 +392,22 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun shareCSVFile(file: java.io.File) {
+        val uri: Uri = FileProvider.getUriForFile(
+            this,
+            "${packageName}.fileprovider",
+            file
+        )
+
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/csv"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+
+        startActivity(Intent.createChooser(shareIntent, "Export Shot Data"))
+    }
+
     private fun showClearDataDialog() {
         AlertDialog.Builder(this)
             .setTitle("Clear All Data")
@@ -335,6 +419,11 @@ class MainActivity : AppCompatActivity() {
             }
             .setNegativeButton("Cancel", null)
             .show()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.refreshStats()
     }
 
     override fun onDestroy() {

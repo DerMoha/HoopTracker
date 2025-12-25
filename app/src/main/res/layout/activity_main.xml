@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background"
@@ -12,19 +11,41 @@
         android:layout_height="wrap_content"
         android:padding="16dp">
 
-        <!-- Header -->
+        <!-- Header with Menu Icons -->
         <TextView
             android:id="@+id/tvTitle"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:text="🏀 HoopTracker"
             android:textColor="@color/text_primary"
             android:textSize="28sp"
             android:textStyle="bold"
+            app:layout_constraintEnd_toStartOf="@id/btnHistory"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <!-- Tracking Status Indicator -->
+        <ImageButton
+            android:id="@+id/btnHistory"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="History"
+            android:src="@android:drawable/ic_menu_recent_history"
+            app:layout_constraintEnd_toStartOf="@id/btnSettings"
+            app:layout_constraintTop_toTopOf="parent"
+            app:tint="@color/text_secondary" />
+
+        <ImageButton
+            android:id="@+id/btnSettings"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Settings"
+            android:src="@android:drawable/ic_menu_preferences"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:tint="@color/text_secondary" />
+
         <View
             android:id="@+id/trackingIndicator"
             android:layout_width="12dp"
@@ -36,14 +57,52 @@
             app:layout_constraintStart_toEndOf="@id/tvTitle"
             app:layout_constraintTop_toTopOf="@id/tvTitle" />
 
-        <!-- Period Selection Chips -->
+        <!-- Streak Display -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardStreak"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            app:cardBackgroundColor="@color/surface"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="2dp"
+            app:layout_constraintTop_toBottomOf="@id/tvTitle">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:padding="12dp">
+
+                <TextView
+                    android:id="@+id/tvStreakLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Current Streak: "
+                    android:textColor="@color/text_secondary"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/tvStreak"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0"
+                    android:textColor="@color/success"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Period Selection -->
         <com.google.android.material.chip.ChipGroup
             android:id="@+id/chipGroup"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="16dp"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tvTitle"
+            app:layout_constraintTop_toBottomOf="@id/cardStreak"
             app:selectionRequired="true"
             app:singleSelection="true">
 
@@ -94,7 +153,6 @@
                 android:layout_height="wrap_content"
                 android:padding="24dp">
 
-                <!-- Circular Progress -->
                 <ProgressBar
                     android:id="@+id/progressCircular"
                     style="?android:attr/progressBarStyleHorizontal"
@@ -121,7 +179,6 @@
                     app:layout_constraintStart_toStartOf="@id/progressCircular"
                     app:layout_constraintTop_toTopOf="@id/progressCircular" />
 
-                <!-- Stats Grid -->
                 <LinearLayout
                     android:id="@+id/statsGrid"
                     android:layout_width="match_parent"
@@ -244,6 +301,65 @@
 
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Shot Type Selection -->
+        <TextView
+            android:id="@+id/tvShotTypeLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="Shot Type"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/cardChart" />
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/chipGroupShotType"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            app:layout_constraintTop_toBottomOf="@id/tvShotTypeLabel"
+            app:selectionRequired="true"
+            app:singleSelection="true">
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipGeneral"
+                style="@style/Widget.Material3.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="true"
+                android:text="General" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip3PT"
+                style="@style/Widget.Material3.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="3-Pointer" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipMidRange"
+                style="@style/Widget.Material3.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Mid-Range" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipLayup"
+                style="@style/Widget.Material3.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Layup" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipFT"
+                style="@style/Widget.Material3.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Free Throw" />
+
+        </com.google.android.material.chip.ChipGroup>
+
         <!-- Control Buttons -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnStartTracking"
@@ -253,7 +369,7 @@
             android:text="Start Voice Tracking"
             android:textSize="16sp"
             app:cornerRadius="12dp"
-            app:layout_constraintTop_toBottomOf="@id/cardChart" />
+            app:layout_constraintTop_toBottomOf="@id/chipGroupShotType" />
 
         <TextView
             android:id="@+id/tvManualLabel"
@@ -299,16 +415,42 @@
         </LinearLayout>
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnClearData"
-            style="@style/Widget.Material3.Button.TextButton"
-            android:layout_width="wrap_content"
+            android:id="@+id/btnUndo"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:text="↶ Undo Last Shot"
+            app:cornerRadius="12dp"
+            app:layout_constraintTop_toBottomOf="@id/manualButtons" />
+
+        <LinearLayout
+            android:id="@+id/actionButtons"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="Clear All Data"
-            android:textColor="@color/error"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/manualButtons" />
+            android:orientation="horizontal"
+            app:layout_constraintTop_toBottomOf="@id/btnUndo">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnExport"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Export CSV"
+                android:textColor="@color/primary" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnClearData"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Clear All Data"
+                android:textColor="@color/error" />
+
+        </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
