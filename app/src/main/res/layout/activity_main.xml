@@ -20,9 +20,20 @@
             android:textColor="@color/text_primary"
             android:textSize="28sp"
             android:textStyle="bold"
-            app:layout_constraintEnd_toStartOf="@id/btnHistory"
+            app:layout_constraintEnd_toStartOf="@id/btnHelp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
+
+        <ImageButton
+            android:id="@+id/btnHelp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Help"
+            android:src="@android:drawable/ic_menu_help"
+            app:layout_constraintEnd_toStartOf="@id/btnHistory"
+            app:layout_constraintTop_toTopOf="parent"
+            app:tint="@color/text_secondary" />
 
         <ImageButton
             android:id="@+id/btnHistory"

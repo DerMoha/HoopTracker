@@ -82,6 +82,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupUI() {
         // Navigation buttons
+        binding.btnHelp.setOnClickListener {
+            startActivity(Intent(this, HelpActivity::class.java))
+        }
+
         binding.btnHistory.setOnClickListener {
             startActivity(Intent(this, ShotHistoryActivity::class.java))
         }
