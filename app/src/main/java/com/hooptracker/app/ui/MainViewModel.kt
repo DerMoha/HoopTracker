@@ -101,6 +101,13 @@ class MainViewModel(private val repository: ShotRepository) : ViewModel() {
         }
     }
 
+    fun restoreShot(shot: Shot) {
+        viewModelScope.launch {
+            repository.restoreShot(shot)
+            refreshStats()
+        }
+    }
+
     fun startSession(): LiveData<Long> {
         val result = MutableLiveData<Long>()
         viewModelScope.launch {

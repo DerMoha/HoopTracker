@@ -1,16 +1,19 @@
 package com.hooptracker.app.ui
 
 import android.os.Bundle
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.slider.Slider
 import com.hooptracker.app.HoopTrackerApplication
 import com.hooptracker.app.data.Preferences
 import com.hooptracker.app.databinding.ActivitySettingsBinding
 
 class SettingsActivity : AppCompatActivity() {
 
-    private lateinit:  binding: ActivitySettingsBinding
+    private lateinit var binding: ActivitySettingsBinding
     private lateinit var preferences: Preferences
+    private val viewModel: MainViewModel by viewModels {
+        MainViewModelFactory((application as HoopTrackerApplication).repository)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -19,9 +22,7 @@ class SettingsActivity : AppCompatActivity() {
 
         preferences = (application as HoopTrackerApplication).preferences
 
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = "Settings"
-
+        binding.toolbar.setNavigationOnClickListener { finish() }
         setupUI()
         loadPreferences()
     }

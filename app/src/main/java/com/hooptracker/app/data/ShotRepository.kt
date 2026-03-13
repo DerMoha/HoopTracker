@@ -46,6 +46,10 @@ class ShotRepository(
         shotDao.deleteById(shotId)
     }
 
+    suspend fun restoreShot(shot: Shot) {
+        insert(shot.copy(id = 0))
+    }
+
     suspend fun getLastShot(): Shot? = shotDao.getLastShot()
 
     suspend fun getRecentShots(limit: Int): List<Shot> = shotDao.getRecentShots(limit)
@@ -269,7 +273,7 @@ class ShotRepository(
             csv.append("${shot.timestamp},")
             csv.append("\"${dateFormat.format(shot.getDate())}\",")
             csv.append("${if (shot.isHit) "Hit" else "Miss"},")
-            csv.append("${shot.getShotType()},")
+            csv.append("${shot.getShotTypeEnum()},")
             csv.append("${shot.sessionId ?: ""}\n")
         }
 

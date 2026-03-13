@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f8f5f1;
+            --card: #ffffff;
+            --text: #212121;
+            --muted: #6b7280;
+            --line: #e6ded4;
+            --primary: #ff6b35;
+            --secondary: #004e89;
+            --success: #2e7d32;
+            --warning: #c2410c;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px 16px 32px;
+            background: radial-gradient(circle at top, #fff6ed 0%, var(--bg) 48%);
+            color: var(--text);
+            font-family: "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.55;
+        }
+
+        h1, h2, h3, p, ul, ol {
+            margin: 0;
+        }
+
+        h1 {
+            font-size: 30px;
+            line-height: 1.1;
+            margin-bottom: 10px;
+        }
+
+        .eyebrow {
+            color: var(--secondary);
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .hero {
+            margin-bottom: 18px;
+        }
+
+        .hero p {
+            color: var(--muted);
+            font-size: 16px;
+        }
+
+        .section {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 18px;
+            margin-top: 14px;
+            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.04);
+        }
+
+        h2 {
+            color: var(--secondary);
+            font-size: 20px;
+            margin-bottom: 12px;
+        }
+
+        h3 {
+            color: var(--primary);
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .stack > * + * {
+            margin-top: 10px;
+        }
+
+        ul, ol {
+            padding-left: 20px;
+        }
+
+        li + li {
+            margin-top: 6px;
+        }
+
+        .pill {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: #fff1e8;
+            color: var(--primary);
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .note {
+            border-left: 4px solid var(--primary);
+            padding: 12px 12px 12px 14px;
+            border-radius: 12px;
+            background: #fff7f2;
+        }
+
+        .warning {
+            border-left-color: var(--warning);
+            background: #fff5f0;
+        }
+
+        .grid {
+            display: grid;
+            gap: 10px;
+        }
+
+        .chip {
+            display: inline-block;
+            margin: 6px 6px 0 0;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: #eff6ff;
+            color: var(--secondary);
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        code {
+            background: #f3f4f6;
+            border-radius: 8px;
+            padding: 2px 6px;
+            font-family: "SFMono-Regular", Consolas, monospace;
+        }
+
+        .footer {
+            text-align: center;
+            color: var(--muted);
+            font-size: 14px;
+            margin-top: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <div class="eyebrow">Practice smarter</div>
+        <h1>HoopTracker guide</h1>
+        <p>Everything stays on your device. Use this page for quick command reminders, stat tips, and session setup before you hit the court.</p>
+    </div>
+
+    <section class="section stack">
+        <div class="pill">Quick start</div>
+        <ol>
+            <li>Pick a shot type on the main screen.</li>
+            <li>Tap <strong>Start Voice Tracking</strong> or record shots manually.</li>
+            <li>Say <code>hit</code>, <code>miss</code>, or add a type like <code>free throw hit</code>.</li>
+            <li>Open History or Settings anytime from the top bar.</li>
+        </ol>
+        <div class="note">The selected shot type now updates both tracking and the stats shown on the dashboard.</div>
+    </section>
+
+    <section class="section stack">
+        <h2>Voice commands</h2>
+        <div>
+            <span class="chip">hit</span>
+            <span class="chip">make</span>
+            <span class="chip">made</span>
+            <span class="chip">good</span>
+            <span class="chip">miss</span>
+            <span class="chip">brick</span>
+            <span class="chip">undo</span>
+        </div>
+        <p>Add a shot type in the same phrase for more specific tracking:</p>
+        <ul>
+            <li><code>three pointer hit</code></li>
+            <li><code>mid range miss</code></li>
+            <li><code>layup make</code></li>
+            <li><code>free throw miss</code></li>
+        </ul>
+    </section>
+
+    <section class="section stack">
+        <h2>Stats and goals</h2>
+        <p>The dashboard updates for the selected time range and shot type.</p>
+        <ul>
+            <li><strong>Today</strong> shows your current day totals.</li>
+            <li><strong>Week</strong> and <strong>Month</strong> include trend charts.</li>
+            <li><strong>Year</strong> gives a longer summary view.</li>
+        </ul>
+        <div class="note">Daily goals show progress for both shot volume and shooting percentage. Update them in Settings and watch the progress card move in real time.</div>
+    </section>
+
+    <section class="section stack">
+        <h2>History and undo</h2>
+        <ul>
+            <li>Every recorded shot appears in Shot history with its type and timestamp.</li>
+            <li>Swipe left or right to delete a shot.</li>
+            <li>Use the in-app or notification <strong>Undo</strong> action to restore the most recent shot if you recorded something by mistake.</li>
+        </ul>
+        <div class="note warning">Deleted history items can only be restored immediately from the undo action.</div>
+    </section>
+
+    <section class="section stack">
+        <h2>Helpful settings</h2>
+        <div class="grid">
+            <div><strong>Haptic feedback</strong> gives a quick vibration after each result.</div>
+            <div><strong>Voice feedback</strong> speaks the last outcome aloud.</div>
+            <div><strong>Auto-start session</strong> creates a practice session as soon as voice tracking starts.</div>
+            <div><strong>Daily goals</strong> shape the dashboard progress targets.</div>
+        </div>
+    </section>
+
+    <p class="footer">Track honestly, practice consistently, and use the trends to spot what needs work next.</p>
+</body>
+</html>
