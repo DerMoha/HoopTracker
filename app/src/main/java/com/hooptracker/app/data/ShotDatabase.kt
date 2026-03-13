@@ -26,7 +26,6 @@ abstract class ShotDatabase : RoomDatabase() {
                     ShotDatabase::class.java,
                     "shot_database"
                 )
-                    .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
                 instance

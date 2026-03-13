@@ -17,6 +17,7 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import androidx.core.app.NotificationCompat
+import com.hooptracker.app.HoopTrackerApplication
 import com.hooptracker.app.R
 import com.hooptracker.app.data.Preferences
 import com.hooptracker.app.data.ShotRepository
@@ -28,17 +29,25 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import java.util.Locale
 
 class ShotTrackingService : Service() {
 
+    enum class StartTrackingResult {
+        STARTED,
+        ALREADY_RUNNING,
+        UNAVAILABLE
+    }
+
     private val binder = LocalBinder()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
+    private lateinit var repository: ShotRepository
+    private lateinit var preferences: Preferences
     private var speechRecognizer: SpeechRecognizer? = null
     private var textToSpeech: TextToSpeech? = null
-    private var repository: ShotRepository? = null
-    private var preferences: Preferences? = null
     private var vibrator: Vibrator? = null
 
     private var isListening = false
@@ -62,46 +71,100 @@ class ShotTrackingService : Service() {
         fun getService(): ShotTrackingService = this@ShotTrackingService
     }
 
-    override fun onBind(intent: Intent): IBinder {
-        return binder
-    }
+    override fun onBind(intent: Intent): IBinder = binder
 
     override fun onCreate() {
         super.onCreate()
+        val app = application as HoopTrackerApplication
+        repository = app.repository
+        preferences = app.preferences
+        currentSessionId = preferences.currentSessionId
         createNotificationChannel()
         initializeVibrator()
         initializeTTS()
+        refreshSessionStats()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP_SERVICE -> {
+                runBlocking(Dispatchers.IO) {
+                    currentSessionId?.let { repository.endSession(it) }
+                    currentSessionId = null
+                    preferences.currentSessionId = null
+                }
                 stopTracking()
                 return START_NOT_STICKY
             }
+
             ACTION_UNDO_SHOT -> {
                 undoLastShot()
+                return START_STICKY
             }
         }
 
         startForeground(NOTIFICATION_ID, createNotification())
-        return START_STICKY
-    }
 
-    fun setRepository(repo: ShotRepository) {
-        this.repository = repo
-    }
+        if (preferences.trackingActive && !isListening) {
+            startTracking()
+        }
 
-    fun setPreferences(prefs: Preferences) {
-        this.preferences = prefs
+        return if (preferences.trackingActive) START_STICKY else START_NOT_STICKY
     }
 
     fun setSessionId(sessionId: Long?) {
-        this.currentSessionId = sessionId
+        currentSessionId = sessionId
+        preferences.currentSessionId = sessionId
+        refreshSessionStats()
     }
 
     fun setShotType(shotType: ShotType) {
-        this.currentShotType = shotType
+        currentShotType = shotType
+        updateNotification()
+    }
+
+    fun isTrackingActive(): Boolean = isListening
+
+    fun startTracking(): StartTrackingResult {
+        if (isListening) {
+            return StartTrackingResult.ALREADY_RUNNING
+        }
+
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            preferences.trackingActive = false
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+            return StartTrackingResult.UNAVAILABLE
+        }
+
+        destroyRecognizer()
+        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this).apply {
+            setRecognitionListener(createRecognitionListener())
+        }
+
+        isListening = true
+        preferences.trackingActive = true
+        refreshSessionStats()
+        startListening()
+        updateNotification()
+        return StartTrackingResult.STARTED
+    }
+
+    fun stopTracking() {
+        isListening = false
+        preferences.trackingActive = false
+        destroyRecognizer()
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+    }
+
+    fun refreshSessionStats() {
+        serviceScope.launch(Dispatchers.IO) {
+            syncSessionStats()
+            withContext(Dispatchers.Main) {
+                updateNotification()
+            }
+        }
     }
 
     private fun initializeVibrator() {
@@ -122,30 +185,6 @@ class ShotTrackingService : Service() {
         }
     }
 
-    fun startTracking() {
-        if (isListening) return
-
-        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
-            return
-        }
-
-        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this).apply {
-            setRecognitionListener(createRecognitionListener())
-        }
-
-        startListening()
-        isListening = true
-        updateNotification()
-    }
-
-    fun stopTracking() {
-        isListening = false
-        speechRecognizer?.destroy()
-        speechRecognizer = null
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
-    }
-
     private fun startListening(attempt: Int = 0) {
         if (!isListening || !isRecognizerReady) return
 
@@ -163,7 +202,7 @@ class ShotTrackingService : Service() {
         try {
             speechRecognizer?.startListening(intent)
             isRecognizerReady = false
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             if (attempt < MAX_RESTART_ATTEMPTS) {
                 serviceScope.launch {
                     delay(RESTART_DELAY_MS * (attempt + 1))
@@ -178,20 +217,21 @@ class ShotTrackingService : Service() {
             isRecognizerReady = true
         }
 
-        override fun onBeginningOfSpeech() {}
-        override fun onRmsChanged(rmsdB: Float) {}
-        override fun onBufferReceived(buffer: ByteArray?) {}
-        override fun onEndOfSpeech() {}
+        override fun onBeginningOfSpeech() = Unit
+
+        override fun onRmsChanged(rmsdB: Float) = Unit
+
+        override fun onBufferReceived(buffer: ByteArray?) = Unit
+
+        override fun onEndOfSpeech() = Unit
 
         override fun onError(error: Int) {
             isRecognizerReady = true
 
-            // Don't restart on client-side errors
             if (error == SpeechRecognizer.ERROR_CLIENT) {
                 return
             }
 
-            // Restart listening after a brief delay
             serviceScope.launch {
                 delay(500)
                 if (isListening) {
@@ -206,12 +246,10 @@ class ShotTrackingService : Service() {
 
             matches?.forEach { result ->
                 if (processVoiceCommand(result.lowercase(Locale.getDefault()))) {
-                    // Command was processed, stop checking other results
                     return@forEach
                 }
             }
 
-            // Continue listening
             if (isListening) {
                 serviceScope.launch {
                     delay(300)
@@ -220,48 +258,49 @@ class ShotTrackingService : Service() {
             }
         }
 
-        override fun onPartialResults(partialResults: android.os.Bundle?) {}
-        override fun onEvent(eventType: Int, params: android.os.Bundle?) {}
+        override fun onPartialResults(partialResults: android.os.Bundle?) = Unit
+
+        override fun onEvent(eventType: Int, params: android.os.Bundle?) = Unit
     }
 
     private fun processVoiceCommand(command: String): Boolean {
-        val repo = repository ?: return false
         var processed = false
         var isHit = false
-        var isMiss = false
         var detectedShotType = currentShotType
 
-        // Detect shot type from command
         when {
             command.contains("three") || command.contains("3") -> {
                 detectedShotType = ShotType.THREE_POINTER
             }
+
             command.contains("mid") || command.contains("midrange") -> {
                 detectedShotType = ShotType.MID_RANGE
             }
+
             command.contains("layup") || command.contains("lay up") -> {
                 detectedShotType = ShotType.LAYUP
             }
+
             command.contains("free throw") || command.contains("freethrow") -> {
                 detectedShotType = ShotType.FREE_THROW
             }
         }
 
-        // Detect hit/miss
         when {
             command.contains("hit") || command.contains("make") ||
-            command.contains("made") || command.contains("good") ||
-            command.contains("in") -> {
+                command.contains("made") || command.contains("good") ||
+                command.contains("in") -> {
                 isHit = true
                 processed = true
             }
+
             command.contains("miss") || command.contains("missed") ||
-            command.contains("no good") || command.contains("brick") -> {
-                isMiss = true
+                command.contains("no good") || command.contains("brick") -> {
                 processed = true
             }
+
             command.contains("undo") || command.contains("cancel") ||
-            command.contains("take back") -> {
+                command.contains("take back") -> {
                 undoLastShot()
                 return true
             }
@@ -270,14 +309,14 @@ class ShotTrackingService : Service() {
         if (processed) {
             serviceScope.launch(Dispatchers.IO) {
                 if (isHit) {
-                    repo.recordHit(currentSessionId, detectedShotType)
-                    totalHits++
-                } else if (isMiss) {
-                    repo.recordMiss(currentSessionId, detectedShotType)
-                    totalMisses++
+                    repository.recordHit(currentSessionId, detectedShotType)
+                } else {
+                    repository.recordMiss(currentSessionId, detectedShotType)
                 }
 
-                launch(Dispatchers.Main) {
+                syncSessionStats(recordedShotWasHit = isHit)
+
+                withContext(Dispatchers.Main) {
                     provideFeedback(isHit)
                     updateNotification()
                 }
@@ -287,9 +326,24 @@ class ShotTrackingService : Service() {
         return processed
     }
 
+    private suspend fun syncSessionStats(recordedShotWasHit: Boolean? = null) {
+        val sessionId = currentSessionId
+        if (sessionId != null) {
+            val sessionStats = repository.getSessionStats(sessionId).stats
+            totalHits = sessionStats.hits
+            totalMisses = sessionStats.misses
+            return
+        }
+
+        when (recordedShotWasHit) {
+            true -> totalHits++
+            false -> totalMisses++
+            null -> Unit
+        }
+    }
+
     private fun provideFeedback(isHit: Boolean) {
-        // Haptic feedback
-        if (preferences?.hapticFeedbackEnabled == true) {
+        if (preferences.hapticFeedbackEnabled) {
             vibrator?.let {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     if (isHit) {
@@ -308,33 +362,57 @@ class ShotTrackingService : Service() {
             }
         }
 
-        // Voice feedback
-        if (preferences?.voiceFeedbackEnabled == true) {
-            val message = if (isHit) "Hit" else "Miss"
-            textToSpeech?.speak(message, TextToSpeech.QUEUE_FLUSH, null, null)
+        if (preferences.voiceFeedbackEnabled) {
+            textToSpeech?.speak(
+                if (isHit) getString(R.string.made_result) else getString(R.string.miss_result),
+                TextToSpeech.QUEUE_FLUSH,
+                null,
+                null
+            )
+        }
+    }
+
+    private fun provideUndoFeedback() {
+        if (preferences.hapticFeedbackEnabled) {
+            vibrator?.let {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    it.vibrate(VibrationEffect.createOneShot(60, VibrationEffect.DEFAULT_AMPLITUDE))
+                } else {
+                    @Suppress("DEPRECATION")
+                    it.vibrate(60)
+                }
+            }
+        }
+
+        if (preferences.voiceFeedbackEnabled) {
+            textToSpeech?.speak(getString(R.string.voice_feedback_undone), TextToSpeech.QUEUE_FLUSH, null, null)
         }
     }
 
     private fun undoLastShot() {
-        val repo = repository ?: return
-
         serviceScope.launch(Dispatchers.IO) {
-            if (repo.undoLastShot()) {
-                // Adjust session stats
-                if (totalHits > 0 || totalMisses > 0) {
-                    if (totalHits > totalMisses && totalHits > 0) {
-                        totalHits--
-                    } else if (totalMisses > 0) {
-                        totalMisses--
-                    }
+            val deletedShot = repository.undoLastShot()
+            if (deletedShot != null) {
+                if (currentSessionId != null) {
+                    syncSessionStats()
+                } else if (deletedShot.isHit && totalHits > 0) {
+                    totalHits--
+                } else if (!deletedShot.isHit && totalMisses > 0) {
+                    totalMisses--
                 }
 
-                launch(Dispatchers.Main) {
-                    provideFeedback(false) // Short feedback for undo
+                withContext(Dispatchers.Main) {
+                    provideUndoFeedback()
                     updateNotification()
                 }
             }
         }
+    }
+
+    private fun destroyRecognizer() {
+        speechRecognizer?.destroy()
+        speechRecognizer = null
+        isRecognizerReady = true
     }
 
     private fun createNotificationChannel() {
@@ -356,7 +434,9 @@ class ShotTrackingService : Service() {
     private fun createNotification(): Notification {
         val mainIntent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
-            this, 0, mainIntent,
+            this,
+            0,
+            mainIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
@@ -364,7 +444,9 @@ class ShotTrackingService : Service() {
             action = ACTION_STOP_SERVICE
         }
         val stopPendingIntent = PendingIntent.getService(
-            this, 0, stopIntent,
+            this,
+            0,
+            stopIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
@@ -372,7 +454,9 @@ class ShotTrackingService : Service() {
             action = ACTION_UNDO_SHOT
         }
         val undoPendingIntent = PendingIntent.getService(
-            this, 1, undoIntent,
+            this,
+            1,
+            undoIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
@@ -381,15 +465,23 @@ class ShotTrackingService : Service() {
 
         val shotTypeText = if (currentShotType != ShotType.GENERAL) {
             " [${currentShotType.name.replace("_", " ")}]"
-        } else ""
+        } else {
+            ""
+        }
+
+        val contentText = if (total > 0) {
+            getString(R.string.tracking_notification_session, totalHits, total, percentage)
+        } else {
+            getString(R.string.tracking_notification_listening)
+        }
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("🏀 HoopTracker Active$shotTypeText")
-            .setContentText("Session: $totalHits/$total ($percentage%) • Say 'hit' or 'miss'")
+            .setContentTitle(getString(R.string.tracking_notification_title) + shotTypeText)
+            .setContentText(contentText)
             .setSmallIcon(R.drawable.ic_basketball)
             .setContentIntent(pendingIntent)
-            .addAction(R.drawable.ic_stop, "Stop", stopPendingIntent)
-            .addAction(0, "Undo", undoPendingIntent)
+            .addAction(R.drawable.ic_stop, getString(R.string.notification_stop), stopPendingIntent)
+            .addAction(0, getString(R.string.notification_undo), undoPendingIntent)
             .setOngoing(true)
             .setSilent(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -397,9 +489,8 @@ class ShotTrackingService : Service() {
     }
 
     private fun updateNotification() {
-        val notification = createNotification()
         val manager = getSystemService(NotificationManager::class.java)
-        manager.notify(NOTIFICATION_ID, notification)
+        manager.notify(NOTIFICATION_ID, createNotification())
     }
 
     fun resetSessionStats() {
@@ -410,7 +501,7 @@ class ShotTrackingService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        speechRecognizer?.destroy()
+        destroyRecognizer()
         textToSpeech?.shutdown()
         serviceScope.cancel()
     }

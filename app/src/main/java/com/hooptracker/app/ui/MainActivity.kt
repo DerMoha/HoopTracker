@@ -27,6 +27,7 @@ import com.hooptracker.app.HoopTrackerApplication
 import com.hooptracker.app.R
 import com.hooptracker.app.data.DailyStats
 import com.hooptracker.app.data.GoalProgress
+import com.hooptracker.app.data.Preferences
 import com.hooptracker.app.data.ShotStats
 import com.hooptracker.app.data.ShotType
 import com.hooptracker.app.data.StatsPeriod
@@ -42,6 +43,7 @@ class MainActivity : AppCompatActivity() {
     private val viewModel: MainViewModel by viewModels {
         MainViewModelFactory((application as HoopTrackerApplication).repository)
     }
+    private lateinit var preferences: Preferences
 
     private var trackingService: ShotTrackingService? = null
     private var isServiceBound = false
@@ -50,21 +52,31 @@ class MainActivity : AppCompatActivity() {
     private var currentShotType = ShotType.GENERAL
     private var selectedPeriod = StatsPeriod.TODAY
     private var selectedStatsShotType: ShotType? = null
+    private var pendingStartTracking = false
+    private var pendingSessionId: Long? = null
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             val binder = service as ShotTrackingService.LocalBinder
             trackingService = binder.getService()
-            trackingService?.setRepository((application as HoopTrackerApplication).repository)
-            trackingService?.setPreferences((application as HoopTrackerApplication).preferences)
             trackingService?.setShotType(currentShotType)
             trackingService?.setSessionId(currentSessionId)
             isServiceBound = true
+
+            if (pendingStartTracking) {
+                beginTrackingAfterBind()
+            } else {
+                updateTrackingState(trackingService?.isTrackingActive() == true || preferences.trackingActive)
+                trackingService?.refreshSessionStats()
+            }
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
             trackingService = null
             isServiceBound = false
+            if (!pendingStartTracking) {
+                updateTrackingState(false)
+            }
         }
     }
 
@@ -82,6 +94,9 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        preferences = (application as HoopTrackerApplication).preferences
+        currentSessionId = preferences.currentSessionId
+        isTracking = preferences.trackingActive
 
         setupUI()
         observeData()
@@ -89,6 +104,10 @@ class MainActivity : AppCompatActivity() {
         updateSelectedPeriod(StatsPeriod.TODAY)
         updateDashboardFilter(null)
         updateTrackingButton()
+
+        if (preferences.trackingActive) {
+            connectToTrackingService(ensureServiceRunning = true)
+        }
     }
 
     private fun setupUI() {
@@ -109,11 +128,11 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.btnManualHit.setOnClickListener {
-            viewModel.recordHit(currentSessionId, currentShotType)
+            recordManualShot(isHit = true)
         }
 
         binding.btnManualMiss.setOnClickListener {
-            viewModel.recordMiss(currentSessionId, currentShotType)
+            recordManualShot(isHit = false)
         }
 
         binding.btnUndo.setOnClickListener {
@@ -168,11 +187,21 @@ class MainActivity : AppCompatActivity() {
             val streakLabel = if (streak.count == 0) {
                 "0"
             } else {
-                "${streak.count} ${if (streak.isHitStreak) "makes" else "misses"}"
+                getString(
+                    if (streak.isHitStreak) R.string.streak_makes else R.string.streak_misses,
+                    streak.count
+                )
             }
             binding.tvStreak.text = streakLabel
             binding.tvStreak.setTextColor(
-                ContextCompat.getColor(this, if (streak.isHitStreak) R.color.success else R.color.error)
+                ContextCompat.getColor(
+                    this,
+                    when {
+                        streak.count == 0 -> R.color.text_secondary
+                        streak.isHitStreak -> R.color.success
+                        else -> R.color.error
+                    }
+                )
             )
         }
 
@@ -356,33 +385,87 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun recordManualShot(isHit: Boolean) {
+        if (isHit) {
+            viewModel.recordHit(currentSessionId, currentShotType)
+        } else {
+            viewModel.recordMiss(currentSessionId, currentShotType)
+        }
+        trackingService?.refreshSessionStats()
+    }
+
     private fun startTrackingService() {
-        val prefs = (application as HoopTrackerApplication).preferences
-        if (prefs.autoStartSession) {
+        if (pendingStartTracking) return
+
+        pendingStartTracking = true
+        binding.tvTrackingStatus.text = getString(R.string.tracking_status_starting)
+
+        if (preferences.autoStartSession && currentSessionId == null) {
             viewModel.startSession { sessionId ->
-                currentSessionId = sessionId
-                trackingService?.setSessionId(sessionId)
+                pendingSessionId = sessionId
+                persistSessionId(sessionId)
+                connectToTrackingService(ensureServiceRunning = true)
+            }
+        } else {
+            connectToTrackingService(ensureServiceRunning = true)
+        }
+    }
+
+    private fun connectToTrackingService(ensureServiceRunning: Boolean) {
+        val intent = Intent(this, ShotTrackingService::class.java)
+
+        if (ensureServiceRunning) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
             }
         }
 
-        val intent = Intent(this, ShotTrackingService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
+        if (!isServiceBound) {
+            bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+        } else if (pendingStartTracking) {
+            beginTrackingAfterBind()
         }
+    }
 
-        bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+    private fun beginTrackingAfterBind() {
+        val service = trackingService ?: return
+        service.setShotType(currentShotType)
+        service.setSessionId(currentSessionId)
 
-        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-            trackingService?.startTracking()
-        }, 500)
+        when (service.startTracking()) {
+            ShotTrackingService.StartTrackingResult.STARTED,
+            ShotTrackingService.StartTrackingResult.ALREADY_RUNNING -> {
+                pendingStartTracking = false
+                pendingSessionId = null
+                updateTrackingState(true)
+                service.refreshSessionStats()
+            }
 
-        isTracking = true
-        updateTrackingButton()
+            ShotTrackingService.StartTrackingResult.UNAVAILABLE -> {
+                pendingStartTracking = false
+                rollbackPendingSession()
+                updateTrackingState(false)
+                binding.tvTrackingStatus.text = getString(R.string.tracking_status_error)
+                Toast.makeText(this, R.string.voice_tracking_unavailable, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun rollbackPendingSession() {
+        pendingSessionId?.let { sessionId ->
+            viewModel.endSession(sessionId)
+            if (currentSessionId == sessionId) {
+                persistSessionId(null)
+            }
+        }
+        pendingSessionId = null
     }
 
     private fun stopTrackingService() {
+        pendingStartTracking = false
+        pendingSessionId = null
         trackingService?.stopTracking()
 
         if (isServiceBound) {
@@ -392,25 +475,38 @@ class MainActivity : AppCompatActivity() {
 
         currentSessionId?.let { sessionId ->
             viewModel.endSession(sessionId)
-            currentSessionId = null
+            persistSessionId(null)
         }
 
-        isTracking = false
-        updateTrackingButton()
+        updateTrackingState(false)
         viewModel.refreshStats()
+    }
+
+    private fun persistSessionId(sessionId: Long?) {
+        currentSessionId = sessionId
+        preferences.currentSessionId = sessionId
+        trackingService?.setSessionId(sessionId)
+    }
+
+    private fun updateTrackingState(active: Boolean) {
+        isTracking = active
+        preferences.trackingActive = active
+        updateTrackingButton()
     }
 
     private fun updateTrackingButton() {
         if (isTracking) {
             binding.btnStartTracking.text = getString(R.string.stop_tracking)
-            binding.btnStartTracking.setBackgroundColor(ContextCompat.getColor(this, R.color.error))
+            binding.btnStartTracking.backgroundTintList = ContextCompat.getColorStateList(this, R.color.error)
             binding.trackingIndicator.visibility = View.VISIBLE
             binding.tvTrackingStatus.text = getString(R.string.tracking_status_on)
         } else {
             binding.btnStartTracking.text = getString(R.string.start_tracking)
-            binding.btnStartTracking.setBackgroundColor(ContextCompat.getColor(this, R.color.primary))
+            binding.btnStartTracking.backgroundTintList = ContextCompat.getColorStateList(this, R.color.primary)
             binding.trackingIndicator.visibility = View.GONE
-            binding.tvTrackingStatus.text = getString(R.string.tracking_status_ready)
+            if (!pendingStartTracking) {
+                binding.tvTrackingStatus.text = getString(R.string.tracking_status_ready)
+            }
         }
     }
 
@@ -436,6 +532,7 @@ class MainActivity : AppCompatActivity() {
             .setMessage(R.string.clear_data_message)
             .setPositiveButton(R.string.clear) { _, _ ->
                 viewModel.clearAllData()
+                persistSessionId(null)
                 trackingService?.resetSessionStats()
                 Toast.makeText(this, R.string.all_data_cleared, Toast.LENGTH_SHORT).show()
             }
@@ -461,6 +558,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (preferences.trackingActive && !isServiceBound) {
+            connectToTrackingService(ensureServiceRunning = true)
+        }
+        isTracking = preferences.trackingActive
+        updateTrackingButton()
         viewModel.refreshStats()
     }
 

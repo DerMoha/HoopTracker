@@ -46,6 +46,15 @@ class MainViewModel(private val repository: ShotRepository) : ViewModel() {
         refreshStats()
     }
 
+    private suspend fun loadDashboardState() {
+        val period = _selectedPeriod.value ?: StatsPeriod.TODAY
+        val shotType = _statsFilterShotType.value
+        _stats.value = repository.getStatsForPeriod(period, shotType)
+        _chartData.value = repository.getChartData(period, shotType)
+        _currentStreak.value = repository.getCurrentStreak()
+        _goalProgress.value = repository.getTodayGoalProgress()
+    }
+
     fun setSelectedPeriod(period: StatsPeriod) {
         if (_selectedPeriod.value == period) return
         _selectedPeriod.value = period
@@ -60,48 +69,43 @@ class MainViewModel(private val repository: ShotRepository) : ViewModel() {
 
     fun refreshStats() {
         viewModelScope.launch {
-            val period = _selectedPeriod.value ?: StatsPeriod.TODAY
-            val shotType = _statsFilterShotType.value
-            _stats.value = repository.getStatsForPeriod(period, shotType)
-            _chartData.value = repository.getChartData(period, shotType)
-            _currentStreak.value = repository.getCurrentStreak()
-            _goalProgress.value = repository.getTodayGoalProgress()
+            loadDashboardState()
         }
     }
 
     fun recordHit(sessionId: Long? = null, shotType: ShotType = ShotType.GENERAL) {
         viewModelScope.launch {
             repository.recordHit(sessionId, shotType)
-            refreshStats()
+            loadDashboardState()
         }
     }
 
     fun recordMiss(sessionId: Long? = null, shotType: ShotType = ShotType.GENERAL) {
         viewModelScope.launch {
             repository.recordMiss(sessionId, shotType)
-            refreshStats()
+            loadDashboardState()
         }
     }
 
     fun undoLastShot(onComplete: (Boolean) -> Unit = {}) {
         viewModelScope.launch {
-            val undone = repository.undoLastShot()
-            refreshStats()
-            onComplete(undone)
+            val deletedShot = repository.undoLastShot()
+            loadDashboardState()
+            onComplete(deletedShot != null)
         }
     }
 
     fun deleteShot(shotId: Long) {
         viewModelScope.launch {
             repository.deleteShot(shotId)
-            refreshStats()
+            loadDashboardState()
         }
     }
 
     fun restoreShot(shot: Shot) {
         viewModelScope.launch {
             repository.restoreShot(shot)
-            refreshStats()
+            loadDashboardState()
         }
     }
 
@@ -114,14 +118,14 @@ class MainViewModel(private val repository: ShotRepository) : ViewModel() {
     fun endSession(sessionId: Long, notes: String? = null) {
         viewModelScope.launch {
             repository.endSession(sessionId, notes)
-            refreshStats()
+            loadDashboardState()
         }
     }
 
     fun updateGoal(targetShots: Int, targetPercentage: Float) {
         viewModelScope.launch {
             repository.updateTodayGoal(targetShots, targetPercentage)
-            refreshStats()
+            loadDashboardState()
         }
     }
 
@@ -139,7 +143,7 @@ class MainViewModel(private val repository: ShotRepository) : ViewModel() {
     fun clearAllData() {
         viewModelScope.launch {
             repository.deleteAll()
-            refreshStats()
+            loadDashboardState()
         }
     }
 }

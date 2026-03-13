@@ -39,12 +39,13 @@ class ShotRepository(
         insert(Shot(isHit = false, sessionId = sessionId, shotType = shotType.name))
     }
 
-    suspend fun undoLastShot(): Boolean {
-        return lastShotId?.let { id ->
-            shotDao.deleteById(id)
+    suspend fun undoLastShot(): Shot? {
+        val lastShot = shotDao.getLastShot() ?: return null
+        shotDao.deleteById(lastShot.id)
+        if (lastShotId == lastShot.id) {
             lastShotId = null
-            true
-        } ?: false
+        }
+        return lastShot
     }
 
     suspend fun deleteShot(shotId: Long) {
@@ -301,6 +302,8 @@ class ShotRepository(
     suspend fun deleteAll() {
         shotDao.deleteAll()
         sessionDao.deleteAll()
+        goalDao.deleteAll()
+        lastShotId = null
     }
 
     suspend fun deleteSession(sessionId: Long) {

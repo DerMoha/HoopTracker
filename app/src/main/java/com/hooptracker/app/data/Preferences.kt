@@ -34,6 +34,10 @@ class Preferences(context: Context) {
         }
         set(value) = prefs.edit().putLong(KEY_CURRENT_SESSION_ID, value ?: -1L).apply()
 
+    var trackingActive: Boolean
+        get() = prefs.getBoolean(KEY_TRACKING_ACTIVE, false)
+        set(value) = prefs.edit().putBoolean(KEY_TRACKING_ACTIVE, value).apply()
+
     companion object {
         private const val KEY_HAPTIC_FEEDBACK = "haptic_feedback"
         private const val KEY_VOICE_FEEDBACK = "voice_feedback"
@@ -41,5 +45,6 @@ class Preferences(context: Context) {
         private const val KEY_DAILY_SHOT_GOAL = "daily_shot_goal"
         private const val KEY_DAILY_PERCENTAGE_GOAL = "daily_percentage_goal"
         private const val KEY_CURRENT_SESSION_ID = "current_session_id"
+        private const val KEY_TRACKING_ACTIVE = "tracking_active"
     }
 }
