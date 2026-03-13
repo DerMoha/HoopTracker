@@ -25,9 +25,14 @@ import com.github.mikephil.charting.data.BarEntry
 import com.github.mikephil.charting.formatter.ValueFormatter
 import com.hooptracker.app.HoopTrackerApplication
 import com.hooptracker.app.R
+import com.hooptracker.app.data.DailyStats
+import com.hooptracker.app.data.GoalProgress
+import com.hooptracker.app.data.ShotStats
 import com.hooptracker.app.data.ShotType
+import com.hooptracker.app.data.StatsPeriod
 import com.hooptracker.app.databinding.ActivityMainBinding
 import com.hooptracker.app.service.ShotTrackingService
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -43,6 +48,8 @@ class MainActivity : AppCompatActivity() {
     private var isTracking = false
     private var currentSessionId: Long? = null
     private var currentShotType = ShotType.GENERAL
+    private var selectedPeriod = StatsPeriod.TODAY
+    private var selectedStatsShotType: ShotType? = null
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -50,6 +57,8 @@ class MainActivity : AppCompatActivity() {
             trackingService = binder.getService()
             trackingService?.setRepository((application as HoopTrackerApplication).repository)
             trackingService?.setPreferences((application as HoopTrackerApplication).preferences)
+            trackingService?.setShotType(currentShotType)
+            trackingService?.setSessionId(currentSessionId)
             isServiceBound = true
         }
 
@@ -62,11 +71,10 @@ class MainActivity : AppCompatActivity() {
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        val allGranted = permissions.values.all { it }
-        if (allGranted) {
+        if (permissions.values.all { it }) {
             startTrackingService()
         } else {
-            Toast.makeText(this, "Permissions required for voice tracking", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.permissions_required_message, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -78,10 +86,12 @@ class MainActivity : AppCompatActivity() {
         setupUI()
         observeData()
         setupChart()
+        updateSelectedPeriod(StatsPeriod.TODAY)
+        updateDashboardFilter(null)
+        updateTrackingButton()
     }
 
     private fun setupUI() {
-        // Navigation buttons
         binding.btnHelp.setOnClickListener {
             startActivity(Intent(this, HelpActivity::class.java))
         }
@@ -94,16 +104,10 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
 
-        // Tracking button
         binding.btnStartTracking.setOnClickListener {
-            if (isTracking) {
-                stopTrackingService()
-            } else {
-                checkPermissionsAndStart()
-            }
+            if (isTracking) stopTrackingService() else checkPermissionsAndStart()
         }
 
-        // Manual entry
         binding.btnManualHit.setOnClickListener {
             viewModel.recordHit(currentSessionId, currentShotType)
         }
@@ -112,90 +116,68 @@ class MainActivity : AppCompatActivity() {
             viewModel.recordMiss(currentSessionId, currentShotType)
         }
 
-        // Undo button
         binding.btnUndo.setOnClickListener {
-            viewModel.undoLastShot()
-            Toast.makeText(this, "Shot undone", Toast.LENGTH_SHORT).show()
+            viewModel.undoLastShot { undone ->
+                runOnUiThread {
+                    Toast.makeText(
+                        this,
+                        if (undone) R.string.shot_undone else R.string.nothing_to_undo,
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
         }
 
-        // Export button
         binding.btnExport.setOnClickListener {
             viewModel.exportToCSV()
         }
 
-        // Clear data
         binding.btnClearData.setOnClickListener {
             showClearDataDialog()
         }
 
-        // Period selection
-        binding.chipToday.setOnClickListener { updateSelectedPeriod("today") }
-        binding.chipWeek.setOnClickListener { updateSelectedPeriod("week") }
-        binding.chipMonth.setOnClickListener { updateSelectedPeriod("month") }
-        binding.chipYear.setOnClickListener { updateSelectedPeriod("year") }
+        binding.chipToday.setOnClickListener { updateSelectedPeriod(StatsPeriod.TODAY) }
+        binding.chipWeek.setOnClickListener { updateSelectedPeriod(StatsPeriod.WEEK) }
+        binding.chipMonth.setOnClickListener { updateSelectedPeriod(StatsPeriod.MONTH) }
+        binding.chipYear.setOnClickListener { updateSelectedPeriod(StatsPeriod.YEAR) }
 
-        // Shot type selection
-        binding.chipGeneral.setOnClickListener {
-            currentShotType = ShotType.GENERAL
-            updateServiceShotType()
-        }
-        binding.chip3PT.setOnClickListener {
-            currentShotType = ShotType.THREE_POINTER
-            updateServiceShotType()
-        }
-        binding.chipMidRange.setOnClickListener {
-            currentShotType = ShotType.MID_RANGE
-            updateServiceShotType()
-        }
-        binding.chipLayup.setOnClickListener {
-            currentShotType = ShotType.LAYUP
-            updateServiceShotType()
-        }
-        binding.chipFT.setOnClickListener {
-            currentShotType = ShotType.FREE_THROW
-            updateServiceShotType()
-        }
+        binding.chipAllShots.setOnClickListener { updateDashboardFilter(null) }
+        binding.chipStatsGeneral.setOnClickListener { updateDashboardFilter(ShotType.GENERAL) }
+        binding.chipStats3PT.setOnClickListener { updateDashboardFilter(ShotType.THREE_POINTER) }
+        binding.chipStatsMidRange.setOnClickListener { updateDashboardFilter(ShotType.MID_RANGE) }
+        binding.chipStatsLayup.setOnClickListener { updateDashboardFilter(ShotType.LAYUP) }
+        binding.chipStatsFT.setOnClickListener { updateDashboardFilter(ShotType.FREE_THROW) }
 
-        updateSelectedPeriod("today")
-    }
-
-    private fun updateServiceShotType() {
-        trackingService?.setShotType(currentShotType)
+        binding.chipGeneral.setOnClickListener { updateRecordingShotType(ShotType.GENERAL) }
+        binding.chip3PT.setOnClickListener { updateRecordingShotType(ShotType.THREE_POINTER) }
+        binding.chipMidRange.setOnClickListener { updateRecordingShotType(ShotType.MID_RANGE) }
+        binding.chipLayup.setOnClickListener { updateRecordingShotType(ShotType.LAYUP) }
+        binding.chipFT.setOnClickListener { updateRecordingShotType(ShotType.FREE_THROW) }
     }
 
     private fun observeData() {
-        viewModel.todayStats.observe(this) { stats ->
-            updateStatsDisplay(stats, "today")
+        viewModel.stats.observe(this) { stats ->
+            updateStatsDisplay(stats)
         }
 
-        viewModel.weeklyStats.observe(this) { stats ->
-            updateStatsDisplay(stats, "week")
-        }
-
-        viewModel.monthlyStats.observe(this) { stats ->
-            updateStatsDisplay(stats, "month")
-        }
-
-        viewModel.yearlyStats.observe(this) { stats ->
-            updateStatsDisplay(stats, "year")
-        }
-
-        viewModel.weeklyChartData.observe(this) { data ->
-            updateChart(data, "week")
-        }
-
-        viewModel.monthlyChartData.observe(this) { data ->
-            updateChart(data, "month")
+        viewModel.chartData.observe(this) { data ->
+            updateChart(data)
         }
 
         viewModel.currentStreak.observe(this) { streak ->
-            binding.tvStreak.text = "${streak.count} ${if (streak.isHitStreak) "🔥 Makes" else "❄️ Misses"}"
+            val streakLabel = if (streak.count == 0) {
+                "0"
+            } else {
+                "${streak.count} ${if (streak.isHitStreak) "makes" else "misses"}"
+            }
+            binding.tvStreak.text = streakLabel
             binding.tvStreak.setTextColor(
-                if (streak.isHitStreak)
-                    ContextCompat.getColor(this, R.color.success)
-                else
-                    ContextCompat.getColor(this, R.color.error)
+                ContextCompat.getColor(this, if (streak.isHitStreak) R.color.success else R.color.error)
             )
+        }
+
+        viewModel.goalProgress.observe(this) { goalProgress ->
+            updateGoalDisplay(goalProgress)
         }
 
         viewModel.exportFile.observe(this) { file ->
@@ -206,42 +188,66 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateSelectedPeriod(period: String) {
-        binding.chipToday.isChecked = period == "today"
-        binding.chipWeek.isChecked = period == "week"
-        binding.chipMonth.isChecked = period == "month"
-        binding.chipYear.isChecked = period == "year"
-
-        when (period) {
-            "today" -> viewModel.todayStats.value?.let { updateStatsDisplay(it, period) }
-            "week" -> {
-                viewModel.weeklyStats.value?.let { updateStatsDisplay(it, period) }
-                viewModel.weeklyChartData.value?.let { updateChart(it, period) }
-            }
-            "month" -> {
-                viewModel.monthlyStats.value?.let { updateStatsDisplay(it, period) }
-                viewModel.monthlyChartData.value?.let { updateChart(it, period) }
-            }
-            "year" -> viewModel.yearlyStats.value?.let { updateStatsDisplay(it, period) }
-        }
+    private fun updateSelectedPeriod(period: StatsPeriod) {
+        selectedPeriod = period
+        binding.chipToday.isChecked = period == StatsPeriod.TODAY
+        binding.chipWeek.isChecked = period == StatsPeriod.WEEK
+        binding.chipMonth.isChecked = period == StatsPeriod.MONTH
+        binding.chipYear.isChecked = period == StatsPeriod.YEAR
+        viewModel.setSelectedPeriod(period)
     }
 
-    private fun updateStatsDisplay(stats: com.hooptracker.app.data.ShotStats, period: String) {
-        val isSelected = when (period) {
-            "today" -> binding.chipToday.isChecked
-            "week" -> binding.chipWeek.isChecked
-            "month" -> binding.chipMonth.isChecked
-            "year" -> binding.chipYear.isChecked
-            else -> false
-        }
+    private fun updateDashboardFilter(shotType: ShotType?) {
+        selectedStatsShotType = shotType
+        binding.chipAllShots.isChecked = shotType == null
+        binding.chipStatsGeneral.isChecked = shotType == ShotType.GENERAL
+        binding.chipStats3PT.isChecked = shotType == ShotType.THREE_POINTER
+        binding.chipStatsMidRange.isChecked = shotType == ShotType.MID_RANGE
+        binding.chipStatsLayup.isChecked = shotType == ShotType.LAYUP
+        binding.chipStatsFT.isChecked = shotType == ShotType.FREE_THROW
+        viewModel.setStatsFilterShotType(shotType)
+    }
 
-        if (!isSelected) return
+    private fun updateRecordingShotType(shotType: ShotType) {
+        currentShotType = shotType
+        trackingService?.setShotType(shotType)
+    }
 
+    private fun updateStatsDisplay(stats: ShotStats) {
         binding.tvHits.text = stats.hits.toString()
         binding.tvMisses.text = stats.misses.toString()
         binding.tvTotal.text = stats.total.toString()
-        binding.tvPercentage.text = String.format("%.1f%%", stats.percentage)
+        binding.tvPercentage.text = String.format(Locale.getDefault(), "%.1f%%", stats.percentage)
         binding.progressCircular.progress = stats.percentage.toInt()
+        binding.tvStatsSubtitle.text = getString(
+            R.string.stats_period_label,
+            formatPeriodLabel(selectedPeriod),
+            formatShotTypeLabel(selectedStatsShotType)
+        )
+        binding.tvStatsEmpty.visibility = if (stats.total == 0) View.VISIBLE else View.GONE
+    }
+
+    private fun updateGoalDisplay(goalProgress: GoalProgress) {
+        binding.tvShotsGoalValue.text = getString(
+            R.string.goal_shots_value,
+            goalProgress.currentShots,
+            goalProgress.goal.targetShots
+        )
+        binding.tvPercentageGoalValue.text = getString(
+            R.string.goal_percentage_value,
+            goalProgress.currentPercentage,
+            goalProgress.goal.targetPercentage
+        )
+        binding.progressShotsGoal.progress = goalProgress.shotsProgress.coerceIn(0f, 100f).toInt()
+        binding.progressPercentageGoal.progress = goalProgress.percentageProgress.coerceIn(0f, 100f).toInt()
+
+        binding.tvGoalsStatus.text = when {
+            goalProgress.goal.targetShots <= 0 || goalProgress.goal.targetPercentage <= 0f -> {
+                getString(R.string.goal_empty_message)
+            }
+            goalProgress.isComplete -> getString(R.string.goal_complete_message)
+            else -> getString(R.string.goal_progress_message)
+        }
     }
 
     private fun setupChart() {
@@ -251,6 +257,7 @@ class MainActivity : AppCompatActivity() {
             setDrawBarShadow(false)
             setScaleEnabled(false)
             setPinchZoom(false)
+            setNoDataText("")
             legend.isEnabled = false
 
             xAxis.apply {
@@ -272,41 +279,57 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateChart(dailyStats: List<com.hooptracker.app.data.DailyStats>, period: String) {
-        val isSelected = when (period) {
-            "week" -> binding.chipWeek.isChecked
-            "month" -> binding.chipMonth.isChecked
-            else -> false
+    private fun updateChart(chartPoints: List<DailyStats>) {
+        binding.tvChartSubtitle.text = getString(
+            R.string.chart_period_subtitle,
+            formatPeriodLabel(selectedPeriod),
+            formatShotTypeLabel(selectedStatsShotType)
+        )
+
+        if (selectedPeriod == StatsPeriod.TODAY) {
+            binding.chart.clear()
+            binding.chart.visibility = View.GONE
+            binding.tvChartEmpty.visibility = View.VISIBLE
+            binding.tvChartEmpty.text = getString(R.string.chart_today_message)
+            return
         }
 
-        if (!isSelected) return
-
-        val entries = dailyStats.mapIndexed { index, daily ->
-            BarEntry(index.toFloat(), daily.stats.percentage)
+        val hasChartContent = chartPoints.any { it.stats.total > 0 }
+        if (!hasChartContent) {
+            binding.chart.clear()
+            binding.chart.visibility = View.GONE
+            binding.tvChartEmpty.visibility = View.VISIBLE
+            binding.tvChartEmpty.text = getString(R.string.chart_empty_message)
+            return
         }
 
-        val dataSet = BarDataSet(entries, "Shooting %").apply {
+        val entries = chartPoints.mapIndexed { index, point ->
+            BarEntry(index.toFloat(), point.stats.percentage)
+        }
+
+        val dataSet = BarDataSet(entries, "").apply {
             color = ContextCompat.getColor(this@MainActivity, R.color.primary)
             valueTextColor = ContextCompat.getColor(this@MainActivity, R.color.text_primary)
             valueTextSize = 10f
             valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
-                    return if (value > 0) "${value.toInt()}%" else ""
+                    return if (value > 0f) "${value.toInt()}%" else ""
                 }
             }
         }
 
-        val dateFormat = SimpleDateFormat("MM/dd", Locale.getDefault())
+        val datePattern = if (selectedPeriod == StatsPeriod.YEAR) "MMM" else "M/d"
+        val dateFormat = SimpleDateFormat(datePattern, Locale.getDefault())
         binding.chart.xAxis.valueFormatter = object : ValueFormatter() {
             override fun getFormattedValue(value: Float): String {
                 val index = value.toInt()
-                return if (index in dailyStats.indices) {
-                    dateFormat.format(dailyStats[index].date)
-                } else ""
+                return if (index in chartPoints.indices) dateFormat.format(chartPoints[index].date) else ""
             }
         }
 
         binding.chart.data = BarData(dataSet)
+        binding.chart.visibility = View.VISIBLE
+        binding.tvChartEmpty.visibility = View.GONE
         binding.chart.animateY(500)
         binding.chart.invalidate()
     }
@@ -334,17 +357,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startTrackingService() {
-        // Start session if auto-start enabled
         val prefs = (application as HoopTrackerApplication).preferences
         if (prefs.autoStartSession) {
-            viewModel.startSession().observe(this) { sessionId ->
+            viewModel.startSession { sessionId ->
                 currentSessionId = sessionId
                 trackingService?.setSessionId(sessionId)
             }
         }
 
         val intent = Intent(this, ShotTrackingService::class.java)
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(intent)
         } else {
@@ -369,7 +390,6 @@ class MainActivity : AppCompatActivity() {
             isServiceBound = false
         }
 
-        // End session if one is active
         currentSessionId?.let { sessionId ->
             viewModel.endSession(sessionId)
             currentSessionId = null
@@ -382,21 +402,19 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateTrackingButton() {
         if (isTracking) {
-            binding.btnStartTracking.text = "Stop Voice Tracking"
-            binding.btnStartTracking.setBackgroundColor(
-                ContextCompat.getColor(this, R.color.error)
-            )
+            binding.btnStartTracking.text = getString(R.string.stop_tracking)
+            binding.btnStartTracking.setBackgroundColor(ContextCompat.getColor(this, R.color.error))
             binding.trackingIndicator.visibility = View.VISIBLE
+            binding.tvTrackingStatus.text = getString(R.string.tracking_status_on)
         } else {
-            binding.btnStartTracking.text = "Start Voice Tracking"
-            binding.btnStartTracking.setBackgroundColor(
-                ContextCompat.getColor(this, R.color.primary)
-            )
+            binding.btnStartTracking.text = getString(R.string.start_tracking)
+            binding.btnStartTracking.setBackgroundColor(ContextCompat.getColor(this, R.color.primary))
             binding.trackingIndicator.visibility = View.GONE
+            binding.tvTrackingStatus.text = getString(R.string.tracking_status_ready)
         }
     }
 
-    private fun shareCSVFile(file: java.io.File) {
+    private fun shareCSVFile(file: File) {
         val uri: Uri = FileProvider.getUriForFile(
             this,
             "${packageName}.fileprovider",
@@ -409,20 +427,36 @@ class MainActivity : AppCompatActivity() {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
 
-        startActivity(Intent.createChooser(shareIntent, "Export Shot Data"))
+        startActivity(Intent.createChooser(shareIntent, getString(R.string.export_shot_data)))
     }
 
     private fun showClearDataDialog() {
         AlertDialog.Builder(this)
-            .setTitle("Clear All Data")
-            .setMessage("Are you sure you want to delete all shot records? This cannot be undone.")
-            .setPositiveButton("Clear") { _, _ ->
+            .setTitle(R.string.clear_data_title)
+            .setMessage(R.string.clear_data_message)
+            .setPositiveButton(R.string.clear) { _, _ ->
                 viewModel.clearAllData()
                 trackingService?.resetSessionStats()
-                Toast.makeText(this, "All data cleared", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, R.string.all_data_cleared, Toast.LENGTH_SHORT).show()
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(R.string.cancel, null)
             .show()
+    }
+
+    private fun formatPeriodLabel(period: StatsPeriod): String = when (period) {
+        StatsPeriod.TODAY -> getString(R.string.stats_period_today)
+        StatsPeriod.WEEK -> getString(R.string.stats_period_week)
+        StatsPeriod.MONTH -> getString(R.string.stats_period_month)
+        StatsPeriod.YEAR -> getString(R.string.stats_period_year)
+    }
+
+    private fun formatShotTypeLabel(shotType: ShotType?): String = when (shotType) {
+        null -> getString(R.string.all_shots_filter)
+        ShotType.GENERAL -> getString(R.string.general_shot_type)
+        ShotType.THREE_POINTER -> getString(R.string.three_point_shot_type)
+        ShotType.MID_RANGE -> getString(R.string.mid_range_shot_type)
+        ShotType.LAYUP -> getString(R.string.layup_shot_type)
+        ShotType.FREE_THROW -> getString(R.string.free_throw_shot_type)
     }
 
     override fun onResume() {

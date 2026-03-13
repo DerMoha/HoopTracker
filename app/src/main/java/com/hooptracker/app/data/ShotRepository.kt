@@ -13,6 +13,11 @@ class ShotRepository(
     private val context: Context
 ) {
 
+    private data class TimeRange(
+        val startTime: Long,
+        val endTime: Long
+    )
+
     val allShots: Flow<List<Shot>> = shotDao.getAllShots()
     val allSessions: Flow<List<Session>> = sessionDao.getAllSessions()
     val allGoals: Flow<List<Goal>> = goalDao.getAllGoals()
@@ -55,10 +60,18 @@ class ShotRepository(
     suspend fun getRecentShots(limit: Int): List<Shot> = shotDao.getRecentShots(limit)
 
     // Statistics
-    suspend fun getStats(startTime: Long, endTime: Long): ShotStats {
-        val hits = shotDao.getHitsCount(startTime, endTime)
-        val misses = shotDao.getMissesCount(startTime, endTime)
-        val total = hits + misses
+    suspend fun getStats(startTime: Long, endTime: Long, shotType: ShotType? = null): ShotStats {
+        val hits = if (shotType == null) {
+            shotDao.getHitsCount(startTime, endTime)
+        } else {
+            shotDao.getHitsCountByType(shotType.name, startTime, endTime)
+        }
+        val total = if (shotType == null) {
+            shotDao.getTotalShotsCount(startTime, endTime)
+        } else {
+            shotDao.getTotalShotsCountByType(shotType.name, startTime, endTime)
+        }
+        val misses = total - hits
         val percentage = if (total > 0) (hits.toFloat() / total.toFloat() * 100) else 0f
 
         return ShotStats(
@@ -69,58 +82,33 @@ class ShotRepository(
         )
     }
 
-    suspend fun getTodayStats(): ShotStats {
-        val calendar = Calendar.getInstance()
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-        val startOfDay = calendar.timeInMillis
-        val endOfDay = System.currentTimeMillis()
+    suspend fun getTodayStats(shotType: ShotType? = null): ShotStats =
+        todayRange().let { getStats(it.startTime, it.endTime, shotType) }
 
-        return getStats(startOfDay, endOfDay)
+    suspend fun getWeeklyStats(shotType: ShotType? = null): ShotStats =
+        currentWeekRange().let { getStats(it.startTime, it.endTime, shotType) }
+
+    suspend fun getMonthlyStats(shotType: ShotType? = null): ShotStats =
+        currentMonthRange().let { getStats(it.startTime, it.endTime, shotType) }
+
+    suspend fun getYearlyStats(shotType: ShotType? = null): ShotStats =
+        currentYearRange().let { getStats(it.startTime, it.endTime, shotType) }
+
+    suspend fun getStatsForPeriod(period: StatsPeriod, shotType: ShotType? = null): ShotStats = when (period) {
+        StatsPeriod.TODAY -> getTodayStats(shotType)
+        StatsPeriod.WEEK -> getWeeklyStats(shotType)
+        StatsPeriod.MONTH -> getMonthlyStats(shotType)
+        StatsPeriod.YEAR -> getYearlyStats(shotType)
     }
 
-    suspend fun getWeeklyStats(): ShotStats {
-        val calendar = Calendar.getInstance()
-        calendar.set(Calendar.DAY_OF_WEEK, calendar.firstDayOfWeek)
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-        val startOfWeek = calendar.timeInMillis
-        val endOfWeek = System.currentTimeMillis()
-
-        return getStats(startOfWeek, endOfWeek)
+    suspend fun getChartData(period: StatsPeriod, shotType: ShotType? = null): List<DailyStats> = when (period) {
+        StatsPeriod.TODAY -> emptyList()
+        StatsPeriod.WEEK -> getDailyStatsForPeriod(7, shotType)
+        StatsPeriod.MONTH -> getDailyStatsForPeriod(30, shotType)
+        StatsPeriod.YEAR -> getMonthlyStatsForYear(12, shotType)
     }
 
-    suspend fun getMonthlyStats(): ShotStats {
-        val calendar = Calendar.getInstance()
-        calendar.set(Calendar.DAY_OF_MONTH, 1)
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-        val startOfMonth = calendar.timeInMillis
-        val endOfMonth = System.currentTimeMillis()
-
-        return getStats(startOfMonth, endOfMonth)
-    }
-
-    suspend fun getYearlyStats(): ShotStats {
-        val calendar = Calendar.getInstance()
-        calendar.set(Calendar.DAY_OF_YEAR, 1)
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-        val startOfYear = calendar.timeInMillis
-        val endOfYear = System.currentTimeMillis()
-
-        return getStats(startOfYear, endOfYear)
-    }
-
-    suspend fun getDailyStatsForPeriod(days: Int): List<DailyStats> {
+    suspend fun getDailyStatsForPeriod(days: Int, shotType: ShotType? = null): List<DailyStats> {
         val result = mutableListOf<DailyStats>()
         val calendar = Calendar.getInstance()
 
@@ -139,8 +127,33 @@ class ShotRepository(
             calendar.set(Calendar.MILLISECOND, 999)
             val endOfDay = calendar.timeInMillis
 
-            val stats = getStats(startOfDay, endOfDay)
+            val stats = getStats(startOfDay, endOfDay, shotType)
             result.add(DailyStats(Date(startOfDay), stats))
+        }
+
+        return result
+    }
+
+    suspend fun getMonthlyStatsForYear(months: Int, shotType: ShotType? = null): List<DailyStats> {
+        val result = mutableListOf<DailyStats>()
+        val calendar = Calendar.getInstance()
+
+        for (i in months - 1 downTo 0) {
+            calendar.timeInMillis = System.currentTimeMillis()
+            calendar.set(Calendar.DAY_OF_MONTH, 1)
+            calendar.add(Calendar.MONTH, -i)
+            calendar.set(Calendar.HOUR_OF_DAY, 0)
+            calendar.set(Calendar.MINUTE, 0)
+            calendar.set(Calendar.SECOND, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
+            val startOfMonth = calendar.timeInMillis
+
+            calendar.add(Calendar.MONTH, 1)
+            calendar.add(Calendar.MILLISECOND, -1)
+            val endOfMonth = calendar.timeInMillis
+
+            val stats = getStats(startOfMonth, endOfMonth, shotType)
+            result.add(DailyStats(Date(startOfMonth), stats))
         }
 
         return result
@@ -292,6 +305,49 @@ class ShotRepository(
 
     suspend fun deleteSession(sessionId: Long) {
         sessionDao.deleteById(sessionId)
+    }
+
+    private fun todayRange(): TimeRange {
+        val calendar = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        return TimeRange(calendar.timeInMillis, System.currentTimeMillis())
+    }
+
+    private fun currentWeekRange(): TimeRange {
+        val calendar = Calendar.getInstance().apply {
+            set(Calendar.DAY_OF_WEEK, firstDayOfWeek)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        return TimeRange(calendar.timeInMillis, System.currentTimeMillis())
+    }
+
+    private fun currentMonthRange(): TimeRange {
+        val calendar = Calendar.getInstance().apply {
+            set(Calendar.DAY_OF_MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        return TimeRange(calendar.timeInMillis, System.currentTimeMillis())
+    }
+
+    private fun currentYearRange(): TimeRange {
+        val calendar = Calendar.getInstance().apply {
+            set(Calendar.DAY_OF_YEAR, 1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        return TimeRange(calendar.timeInMillis, System.currentTimeMillis())
     }
 }
 

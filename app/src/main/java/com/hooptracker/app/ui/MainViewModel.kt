@@ -6,41 +6,38 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
-import com.hooptracker.app.data.*
+import com.hooptracker.app.data.DailyStats
+import com.hooptracker.app.data.GoalProgress
+import com.hooptracker.app.data.Shot
+import com.hooptracker.app.data.ShotRepository
+import com.hooptracker.app.data.ShotStats
+import com.hooptracker.app.data.ShotType
+import com.hooptracker.app.data.StatsPeriod
+import com.hooptracker.app.data.StreakInfo
 import kotlinx.coroutines.launch
 import java.io.File
 
 class MainViewModel(private val repository: ShotRepository) : ViewModel() {
 
     val allShots: LiveData<List<Shot>> = repository.allShots.asLiveData()
-    val allSessions: LiveData<List<Session>> = repository.allSessions.asLiveData()
 
-    private val _todayStats = MutableLiveData<ShotStats>()
-    val todayStats: LiveData<ShotStats> = _todayStats
+    private val _stats = MutableLiveData<ShotStats>()
+    val stats: LiveData<ShotStats> = _stats
 
-    private val _weeklyStats = MutableLiveData<ShotStats>()
-    val weeklyStats: LiveData<ShotStats> = _weeklyStats
+    private val _chartData = MutableLiveData<List<DailyStats>>(emptyList())
+    val chartData: LiveData<List<DailyStats>> = _chartData
 
-    private val _monthlyStats = MutableLiveData<ShotStats>()
-    val monthlyStats: LiveData<ShotStats> = _monthlyStats
+    private val _selectedPeriod = MutableLiveData(StatsPeriod.TODAY)
+    val selectedPeriod: LiveData<StatsPeriod> = _selectedPeriod
 
-    private val _yearlyStats = MutableLiveData<ShotStats>()
-    val yearlyStats: LiveData<ShotStats> = _yearlyStats
-
-    private val _weeklyChartData = MutableLiveData<List<DailyStats>>()
-    val weeklyChartData: LiveData<List<DailyStats>> = _weeklyChartData
-
-    private val _monthlyChartData = MutableLiveData<List<DailyStats>>()
-    val monthlyChartData: LiveData<List<DailyStats>> = _monthlyChartData
+    private val _statsFilterShotType = MutableLiveData<ShotType?>(null)
+    val statsFilterShotType: LiveData<ShotType?> = _statsFilterShotType
 
     private val _currentStreak = MutableLiveData<StreakInfo>()
     val currentStreak: LiveData<StreakInfo> = _currentStreak
 
     private val _goalProgress = MutableLiveData<GoalProgress>()
     val goalProgress: LiveData<GoalProgress> = _goalProgress
-
-    private val _typeStats = MutableLiveData<Map<ShotType, ShotStats>>()
-    val typeStats: LiveData<Map<ShotType, ShotStats>> = _typeStats
 
     private val _exportFile = MutableLiveData<File?>()
     val exportFile: LiveData<File?> = _exportFile
@@ -49,27 +46,26 @@ class MainViewModel(private val repository: ShotRepository) : ViewModel() {
         refreshStats()
     }
 
+    fun setSelectedPeriod(period: StatsPeriod) {
+        if (_selectedPeriod.value == period) return
+        _selectedPeriod.value = period
+        refreshStats()
+    }
+
+    fun setStatsFilterShotType(shotType: ShotType?) {
+        if (_statsFilterShotType.value == shotType) return
+        _statsFilterShotType.value = shotType
+        refreshStats()
+    }
+
     fun refreshStats() {
         viewModelScope.launch {
-            _todayStats.value = repository.getTodayStats()
-            _weeklyStats.value = repository.getWeeklyStats()
-            _monthlyStats.value = repository.getMonthlyStats()
-            _yearlyStats.value = repository.getYearlyStats()
-            _weeklyChartData.value = repository.getDailyStatsForPeriod(7)
-            _monthlyChartData.value = repository.getDailyStatsForPeriod(30)
+            val period = _selectedPeriod.value ?: StatsPeriod.TODAY
+            val shotType = _statsFilterShotType.value
+            _stats.value = repository.getStatsForPeriod(period, shotType)
+            _chartData.value = repository.getChartData(period, shotType)
             _currentStreak.value = repository.getCurrentStreak()
             _goalProgress.value = repository.getTodayGoalProgress()
-
-            // Get shot type stats for today
-            val calendar = java.util.Calendar.getInstance()
-            calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
-            calendar.set(java.util.Calendar.MINUTE, 0)
-            calendar.set(java.util.Calendar.SECOND, 0)
-            calendar.set(java.util.Calendar.MILLISECOND, 0)
-            val startOfDay = calendar.timeInMillis
-            val endOfDay = System.currentTimeMillis()
-
-            _typeStats.value = repository.getAllTypeStats(startOfDay, endOfDay)
         }
     }
 
@@ -87,10 +83,11 @@ class MainViewModel(private val repository: ShotRepository) : ViewModel() {
         }
     }
 
-    fun undoLastShot() {
+    fun undoLastShot(onComplete: (Boolean) -> Unit = {}) {
         viewModelScope.launch {
-            repository.undoLastShot()
+            val undone = repository.undoLastShot()
             refreshStats()
+            onComplete(undone)
         }
     }
 
@@ -108,13 +105,10 @@ class MainViewModel(private val repository: ShotRepository) : ViewModel() {
         }
     }
 
-    fun startSession(): LiveData<Long> {
-        val result = MutableLiveData<Long>()
+    fun startSession(onComplete: (Long) -> Unit) {
         viewModelScope.launch {
-            val sessionId = repository.startSession()
-            result.postValue(sessionId)
+            onComplete(repository.startSession())
         }
-        return result
     }
 
     fun endSession(sessionId: Long, notes: String? = null) {
@@ -127,7 +121,7 @@ class MainViewModel(private val repository: ShotRepository) : ViewModel() {
     fun updateGoal(targetShots: Int, targetPercentage: Float) {
         viewModelScope.launch {
             repository.updateTodayGoal(targetShots, targetPercentage)
-            _goalProgress.value = repository.getTodayGoalProgress()
+            refreshStats()
         }
     }
 

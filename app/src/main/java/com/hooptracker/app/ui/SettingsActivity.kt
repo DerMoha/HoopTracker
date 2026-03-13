@@ -14,6 +14,8 @@ class SettingsActivity : AppCompatActivity() {
     private val viewModel: MainViewModel by viewModels {
         MainViewModelFactory((application as HoopTrackerApplication).repository)
     }
+    private var isBindingGoalValues = false
+    private var legacyGoalSynced = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -24,7 +26,8 @@ class SettingsActivity : AppCompatActivity() {
 
         binding.toolbar.setNavigationOnClickListener { finish() }
         setupUI()
-        loadPreferences()
+        observeGoalSettings()
+        loadTogglePreferences()
     }
 
     private fun setupUI() {
@@ -41,30 +44,58 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         binding.sliderDailyShots.addOnChangeListener { _, value, fromUser ->
-            if (fromUser) {
+            if (fromUser && !isBindingGoalValues) {
                 preferences.dailyShotGoal = value.toInt()
                 binding.tvDailyShotsValue.text = value.toInt().toString()
+                updateGoalFromInputs()
             }
         }
 
         binding.sliderDailyPercentage.addOnChangeListener { _, value, fromUser ->
-            if (fromUser) {
+            if (fromUser && !isBindingGoalValues) {
                 preferences.dailyPercentageGoal = value
                 binding.tvDailyPercentageValue.text = "${value.toInt()}%"
+                updateGoalFromInputs()
             }
         }
     }
 
-    private fun loadPreferences() {
+    private fun observeGoalSettings() {
+        viewModel.goalProgress.observe(this) { goalProgress ->
+            if (!legacyGoalSynced) {
+                val shouldSeedLegacyGoal =
+                    goalProgress.goal.targetShots == 100 &&
+                        goalProgress.goal.targetPercentage == 50f &&
+                        (preferences.dailyShotGoal != 100 || preferences.dailyPercentageGoal != 50f)
+
+                legacyGoalSynced = true
+
+                if (shouldSeedLegacyGoal) {
+                    viewModel.updateGoal(preferences.dailyShotGoal, preferences.dailyPercentageGoal)
+                    return@observe
+                }
+            }
+
+            isBindingGoalValues = true
+            binding.sliderDailyShots.value = goalProgress.goal.targetShots.toFloat()
+            binding.tvDailyShotsValue.text = goalProgress.goal.targetShots.toString()
+            binding.sliderDailyPercentage.value = goalProgress.goal.targetPercentage
+            binding.tvDailyPercentageValue.text = "${goalProgress.goal.targetPercentage.toInt()}%"
+            isBindingGoalValues = false
+        }
+    }
+
+    private fun loadTogglePreferences() {
         binding.switchHaptic.isChecked = preferences.hapticFeedbackEnabled
         binding.switchVoice.isChecked = preferences.voiceFeedbackEnabled
         binding.switchAutoSession.isChecked = preferences.autoStartSession
+    }
 
-        binding.sliderDailyShots.value = preferences.dailyShotGoal.toFloat()
-        binding.tvDailyShotsValue.text = preferences.dailyShotGoal.toString()
-
-        binding.sliderDailyPercentage.value = preferences.dailyPercentageGoal
-        binding.tvDailyPercentageValue.text = "${preferences.dailyPercentageGoal.toInt()}%"
+    private fun updateGoalFromInputs() {
+        viewModel.updateGoal(
+            binding.sliderDailyShots.value.toInt(),
+            binding.sliderDailyPercentage.value
+        )
     }
 
     override fun onSupportNavigateUp(): Boolean {
