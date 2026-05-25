@@ -273,7 +273,7 @@ class ShotTrackingService : Service() {
                 detectedShotType = ShotType.THREE_POINTER
             }
 
-            command.contains("mid") || command.contains("midrange") -> {
+            command.contains("mid") || command.contains("midrange") || command.contains("mid-range") -> {
                 detectedShotType = ShotType.MID_RANGE
             }
 
@@ -288,8 +288,7 @@ class ShotTrackingService : Service() {
 
         when {
             command.contains("hit") || command.contains("make") ||
-                command.contains("made") || command.contains("good") ||
-                command.contains("in") -> {
+                command.contains("made") || command.contains("good") -> {
                 isHit = true
                 processed = true
             }
@@ -461,7 +460,7 @@ class ShotTrackingService : Service() {
         )
 
         val total = totalHits + totalMisses
-        val percentage = if (total > 0) (totalHits * 100 / total) else 0
+        val percentage = if (total > 0) (totalHits.toFloat() / total * 100).toInt() else 0
 
         val shotTypeText = if (currentShotType != ShotType.GENERAL) {
             " [${currentShotType.name.replace("_", " ")}]"
