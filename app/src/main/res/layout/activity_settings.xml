@@ -76,7 +76,8 @@
                         <com.google.android.material.switchmaterial.SwitchMaterial
                             android:id="@+id/switchHaptic"
                             android:layout_width="wrap_content"
-                            android:layout_height="wrap_content" />
+                            android:layout_height="wrap_content"
+                            android:contentDescription="@string/switch_haptic_description" />
                     </LinearLayout>
 
                     <TextView
@@ -109,7 +110,8 @@
                         <com.google.android.material.switchmaterial.SwitchMaterial
                             android:id="@+id/switchVoice"
                             android:layout_width="wrap_content"
-                            android:layout_height="wrap_content" />
+                            android:layout_height="wrap_content"
+                            android:contentDescription="@string/switch_voice_description" />
                     </LinearLayout>
 
                     <TextView
@@ -162,7 +164,8 @@
                         <com.google.android.material.switchmaterial.SwitchMaterial
                             android:id="@+id/switchAutoSession"
                             android:layout_width="wrap_content"
-                            android:layout_height="wrap_content" />
+                            android:layout_height="wrap_content"
+                            android:contentDescription="@string/switch_auto_session_description" />
                     </LinearLayout>
 
                     <TextView
@@ -226,6 +229,7 @@
                         android:id="@+id/sliderDailyShots"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:contentDescription="@string/slider_daily_shots_description"
                         android:stepSize="10"
                         android:valueFrom="10"
                         android:valueTo="500" />
@@ -270,6 +274,21 @@
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvPrivacyPolicy"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:text="@string/privacy_policy"
+                android:textColor="@color/primary"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackground" />
 
         </LinearLayout>
 

@@ -67,6 +67,7 @@
                 android:layout_height="12dp"
                 android:layout_marginStart="8dp"
                 android:background="@drawable/tracking_indicator"
+                android:contentDescription="@string/tracking_indicator_description"
                 android:visibility="gone"
                 app:layout_constraintBottom_toBottomOf="@id/tvTitle"
                 app:layout_constraintStart_toEndOf="@id/tvTitle"
@@ -317,6 +318,7 @@
                         style="?android:attr/progressBarStyleHorizontal"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
+                        android:contentDescription="@string/progress_circular_description"
                         android:indeterminate="false"
                         android:max="100"
                         android:progress="0"
@@ -476,6 +478,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="8dp"
                     android:layout_marginTop="8dp"
+                    android:contentDescription="@string/progress_shots_goal_description"
                     android:max="100"
                     android:progress="0"
                     app:indicatorColor="@color/primary"
@@ -504,6 +507,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="8dp"
                     android:layout_marginTop="8dp"
+                    android:contentDescription="@string/progress_percentage_goal_description"
                     android:max="100"
                     android:progress="0"
                     app:indicatorColor="@color/secondary"
@@ -561,7 +565,8 @@
                     <com.github.mikephil.charting.charts.BarChart
                         android:id="@+id/chart"
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent" />
+                        android:layout_height="match_parent"
+                        android:contentDescription="@string/chart_description" />
 
                     <TextView
                         android:id="@+id/tvChartEmpty"

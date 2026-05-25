@@ -57,6 +57,13 @@
             android:screenOrientation="portrait"
             android:parentActivityName=".ui.MainActivity" />
 
+        <!-- Privacy Policy Activity -->
+        <activity
+            android:name=".ui.PrivacyPolicyActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:parentActivityName=".ui.MainActivity" />
+
         <!-- Shot Tracking Foreground Service -->
         <service
             android:name=".service.ShotTrackingService"

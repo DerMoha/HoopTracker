@@ -102,4 +102,16 @@
     <string name="exporting">Exporting…</string>
     <string name="dashboard_empty_title">No shots recorded yet</string>
     <string name="dashboard_empty_body">Start voice tracking or tap the manual buttons below to log your first shot.</string>
+    <string name="privacy_policy">Privacy Policy</string>
+    <string name="privacy_policy_title">Privacy Policy</string>
+    <string name="tracking_indicator_description">Voice tracking active</string>
+    <string name="progress_circular_description">Shooting accuracy progress</string>
+    <string name="chart_description">Shooting percentage chart</string>
+    <string name="progress_shots_goal_description">Shot volume goal progress</string>
+    <string name="progress_percentage_goal_description">Accuracy goal progress</string>
+    <string name="switch_haptic_description">Haptic feedback toggle</string>
+    <string name="switch_voice_description">Voice feedback toggle</string>
+    <string name="switch_auto_session_description">Auto-start session toggle</string>
+    <string name="slider_daily_shots_description">Daily shot goal</string>
+    <string name="slider_daily_percentage_description">Daily percentage goal</string>
 </resources>

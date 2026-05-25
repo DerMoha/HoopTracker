@@ -1,5 +1,6 @@
 package com.hooptracker.app.ui
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -41,6 +42,10 @@ class SettingsActivity : AppCompatActivity() {
 
         binding.switchAutoSession.setOnCheckedChangeListener { _, isChecked ->
             preferences.autoStartSession = isChecked
+        }
+
+        binding.tvPrivacyPolicy.setOnClickListener {
+            startActivity(Intent(this, PrivacyPolicyActivity::class.java))
         }
 
         binding.sliderDailyShots.addOnChangeListener { _, value, fromUser ->

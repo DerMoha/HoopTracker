@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f8f5f1;
+            --card: #ffffff;
+            --text: #212121;
+            --muted: #6b7280;
+            --line: #e6ded4;
+            --primary: #ff6b35;
+            --secondary: #004e89;
+            --success: #2e7d32;
+            --warning: #c2410c;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px 16px 32px;
+            background: radial-gradient(circle at top, #fff6ed 0%, var(--bg) 48%);
+            color: var(--text);
+            font-family: "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.55;
+        }
+
+        h1, h2, h3, p, ul, ol {
+            margin: 0;
+        }
+
+        h1 {
+            font-size: 30px;
+            line-height: 1.1;
+            margin-bottom: 10px;
+        }
+
+        .eyebrow {
+            color: var(--secondary);
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .hero {
+            margin-bottom: 18px;
+        }
+
+        .hero p {
+            color: var(--muted);
+            font-size: 16px;
+        }
+
+        .section {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 18px;
+            margin-top: 14px;
+            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.04);
+        }
+
+        h2 {
+            color: var(--secondary);
+            font-size: 20px;
+            margin-bottom: 12px;
+        }
+
+        h3 {
+            color: var(--primary);
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .stack > * + * {
+            margin-top: 10px;
+        }
+
+        ul, ol {
+            padding-left: 20px;
+        }
+
+        li + li {
+            margin-top: 6px;
+        }
+
+        .pill {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: #fff1e8;
+            color: var(--primary);
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .note {
+            border-left: 4px solid var(--success);
+            padding: 12px 12px 12px 14px;
+            border-radius: 12px;
+            background: #f0f9f1;
+        }
+
+        .warning {
+            border-left-color: var(--warning);
+            background: #fff5f0;
+        }
+
+        code {
+            background: #f3f4f6;
+            border-radius: 8px;
+            padding: 2px 6px;
+            font-family: "SFMono-Regular", Consolas, monospace;
+        }
+
+        .footer {
+            text-align: center;
+            color: var(--muted);
+            font-size: 14px;
+            margin-top: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <div class="eyebrow">Your data is yours</div>
+        <h1>Privacy policy</h1>
+        <p>HoopTracker is designed so everything you do stays on your device. Nothing leaves.</p>
+    </div>
+
+    <section class="section stack">
+        <div class="pill">Last updated: May 2026</div>
+        <p>This privacy policy explains how HoopTracker handles your information. Because we do not collect or share anything, the policy is intentionally short.</p>
+    </section>
+
+    <section class="section stack">
+        <h2>Data we do not collect</h2>
+        <p>HoopTracker does not collect, store on external servers, transmit, or share <strong>any</strong> personal data or usage information.</p>
+    </section>
+
+    <section class="section stack">
+        <h2>On-device permissions</h2>
+        <h3>Microphone</h3>
+        <p>HoopTracker uses your device microphone for on-device voice command recognition (detecting <code>hit</code>, <code>miss</code>, and shot-type keywords). All audio processing happens locally using Android speech recognition. No audio recordings are saved, stored, or transmitted off your device.</p>
+
+        <h3>Notifications</h3>
+        <p>HoopTracker shows a persistent notification while voice tracking is active so you can quickly stop tracking or undo shots. This notification never contains personal data and is managed entirely on-device.</p>
+
+        <h3>Bluetooth</h3>
+        <p>HoopTracker does not directly use Bluetooth. However, if you connect Bluetooth headphones, the voice feedback feature may route audio through them. No Bluetooth data is collected or transmitted by the app.</p>
+    </section>
+
+    <section class="section stack">
+        <h2>Local storage</h2>
+        <p>All shot records, preferences, and session data are stored exclusively in the app's private local storage on your device. This data never leaves your device and is deleted when you uninstall the app or use the Clear All Data option in Settings.</p>
+    </section>
+
+    <section class="section stack">
+        <h2>No internet, no analytics, no ads</h2>
+        <div class="note"><strong>HoopTracker has zero internet access.</strong> The app does not request the internet permission.</div>
+        <ul>
+            <li>No analytics or crash reporting frameworks</li>
+            <li>No advertising or ad networks</li>
+            <li>No third-party services or SDKs that communicate externally</li>
+            <li>No user accounts, sign-in, or cloud sync</li>
+        </ul>
+    </section>
+
+    <section class="section stack">
+        <h2>Open source</h2>
+        <p>HoopTracker is open source. You can review the full source code to verify exactly how your data is handled.</p>
+    </section>
+
+    <section class="section stack">
+        <h2>Children's privacy</h2>
+        <p>HoopTracker does not collect any personal information from anyone, including children under the age of 13. Because no data is collected at all, there is no risk of accidental collection from minors.</p>
+    </section>
+
+    <section class="section stack">
+        <h2>Contact</h2>
+        <p>If you have questions about this privacy policy, you can reach out through the project's open-source repository.</p>
+    </section>
+
+    <p class="footer">No data ever leaves your device. That is our commitment.</p>
+</body>
+</html>
