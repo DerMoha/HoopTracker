@@ -267,6 +267,7 @@
                         android:id="@+id/sliderDailyPercentage"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:contentDescription="@string/slider_daily_percentage_description"
                         android:stepSize="5"
                         android:valueFrom="10"
                         android:valueTo="100" />
