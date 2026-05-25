@@ -276,8 +276,6 @@
 
             </com.google.android.material.card.MaterialCardView>
 
-        </LinearLayout>
-
             <TextView
                 android:id="@+id/tvPrivacyPolicy"
                 android:layout_width="wrap_content"
