@@ -42,6 +42,26 @@ class MainViewModel(private val repository: ShotRepository) : ViewModel() {
     private val _exportFile = MutableLiveData<File?>()
     val exportFile: LiveData<File?> = _exportFile
 
+    private val _error = MutableLiveData<String?>()
+    val error: LiveData<String?> = _error
+
+    private val _isExporting = MutableLiveData(false)
+    val isExporting: LiveData<Boolean> = _isExporting
+
+    fun clearError() {
+        _error.value = null
+    }
+
+    private fun launchSafe(block: suspend () -> Unit) {
+        viewModelScope.launch {
+            try {
+                block()
+            } catch (e: Exception) {
+                _error.postValue(e.message ?: "An unexpected error occurred")
+            }
+        }
+    }
+
     init {
         refreshStats()
     }
@@ -68,27 +88,27 @@ class MainViewModel(private val repository: ShotRepository) : ViewModel() {
     }
 
     fun refreshStats() {
-        viewModelScope.launch {
+        launchSafe {
             loadDashboardState()
         }
     }
 
     fun recordHit(sessionId: Long? = null, shotType: ShotType = ShotType.GENERAL) {
-        viewModelScope.launch {
+        launchSafe {
             repository.recordHit(sessionId, shotType)
             loadDashboardState()
         }
     }
 
     fun recordMiss(sessionId: Long? = null, shotType: ShotType = ShotType.GENERAL) {
-        viewModelScope.launch {
+        launchSafe {
             repository.recordMiss(sessionId, shotType)
             loadDashboardState()
         }
     }
 
     fun undoLastShot(onComplete: (Boolean) -> Unit = {}) {
-        viewModelScope.launch {
+        launchSafe {
             val deletedShot = repository.undoLastShot()
             loadDashboardState()
             onComplete(deletedShot != null)
@@ -96,43 +116,45 @@ class MainViewModel(private val repository: ShotRepository) : ViewModel() {
     }
 
     fun deleteShot(shotId: Long) {
-        viewModelScope.launch {
+        launchSafe {
             repository.deleteShot(shotId)
             loadDashboardState()
         }
     }
 
     fun restoreShot(shot: Shot) {
-        viewModelScope.launch {
+        launchSafe {
             repository.restoreShot(shot)
             loadDashboardState()
         }
     }
 
     fun startSession(onComplete: (Long) -> Unit) {
-        viewModelScope.launch {
+        launchSafe {
             onComplete(repository.startSession())
         }
     }
 
     fun endSession(sessionId: Long, notes: String? = null) {
-        viewModelScope.launch {
+        launchSafe {
             repository.endSession(sessionId, notes)
             loadDashboardState()
         }
     }
 
     fun updateGoal(targetShots: Int, targetPercentage: Float) {
-        viewModelScope.launch {
+        launchSafe {
             repository.updateTodayGoal(targetShots, targetPercentage)
             loadDashboardState()
         }
     }
 
     fun exportToCSV() {
-        viewModelScope.launch {
+        launchSafe {
+            _isExporting.value = true
             val file = repository.exportToCSV()
             _exportFile.postValue(file)
+            _isExporting.value = false
         }
     }
 
@@ -141,7 +163,7 @@ class MainViewModel(private val repository: ShotRepository) : ViewModel() {
     }
 
     fun clearAllData() {
-        viewModelScope.launch {
+        launchSafe {
             repository.deleteAll()
             loadDashboardState()
         }

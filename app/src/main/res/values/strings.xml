@@ -99,4 +99,7 @@
     <string name="notification_stop">Stop</string>
     <string name="notification_undo">Undo</string>
     <string name="voice_feedback_undone">Undone</string>
+    <string name="exporting">Exporting…</string>
+    <string name="dashboard_empty_title">No shots recorded yet</string>
+    <string name="dashboard_empty_body">Start voice tracking or tap the manual buttons below to log your first shot.</string>
 </resources>

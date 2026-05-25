@@ -34,7 +34,7 @@
                 android:layout_height="48dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/help"
-                android:src="@android:drawable/ic_menu_help"
+                android:src="@drawable/ic_help_outline_24"
                 app:layout_constraintEnd_toStartOf="@id/btnHistory"
                 app:layout_constraintTop_toTopOf="parent"
                 app:tint="@color/text_secondary" />
@@ -45,7 +45,7 @@
                 android:layout_height="48dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/history"
-                android:src="@android:drawable/ic_menu_recent_history"
+                android:src="@drawable/ic_history_24"
                 app:layout_constraintEnd_toStartOf="@id/btnSettings"
                 app:layout_constraintTop_toTopOf="parent"
                 app:tint="@color/text_secondary" />
@@ -56,7 +56,7 @@
                 android:layout_height="48dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/settings"
-                android:src="@android:drawable/ic_menu_preferences"
+                android:src="@drawable/ic_settings_24"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:tint="@color/text_secondary" />
@@ -97,6 +97,35 @@
                 app:layout_constraintTop_toBottomOf="@id/tvSubtitle" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <LinearLayout
+            android:id="@+id/dashboardEmptyState"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="32dp"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/dashboard_empty_title"
+                android:textColor="@color/text_primary"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/dashboard_empty_body"
+                android:textAlignment="center"
+                android:textColor="@color/text_secondary"
+                android:textSize="14sp" />
+
+        </LinearLayout>
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardStreak"
@@ -277,34 +306,39 @@
                     android:textColor="@color/text_secondary"
                     android:textSize="14sp" />
 
-                <ProgressBar
-                    android:id="@+id/progressCircular"
-                    style="?android:attr/progressBarStyleHorizontal"
+                <FrameLayout
                     android:layout_width="120dp"
                     android:layout_height="120dp"
                     android:layout_gravity="center_horizontal"
-                    android:layout_marginTop="20dp"
-                    android:indeterminate="false"
-                    android:max="100"
-                    android:progress="0"
-                    android:progressDrawable="@drawable/circular_progress" />
+                    android:layout_marginTop="20dp">
 
-                <TextView
-                    android:id="@+id/tvPercentage"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center_horizontal"
-                    android:layout_marginTop="-78dp"
-                    android:text="0%"
-                    android:textColor="@color/primary"
-                    android:textSize="32sp"
-                    android:textStyle="bold" />
+                    <ProgressBar
+                        android:id="@+id/progressCircular"
+                        style="?android:attr/progressBarStyleHorizontal"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:indeterminate="false"
+                        android:max="100"
+                        android:progress="0"
+                        android:progressDrawable="@drawable/circular_progress" />
+
+                    <TextView
+                        android:id="@+id/tvPercentage"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:text="0%"
+                        android:textColor="@color/primary"
+                        android:textSize="32sp"
+                        android:textStyle="bold" />
+
+                </FrameLayout>
 
                 <LinearLayout
                     android:id="@+id/statsGrid"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="34dp"
+                    android:layout_marginTop="16dp"
                     android:orientation="horizontal">
 
                     <LinearLayout

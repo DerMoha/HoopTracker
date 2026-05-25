@@ -22,5 +22,5 @@ data class Shot(
     val shotType: String = ShotType.GENERAL.name
 ) {
     fun getDate(): Date = Date(timestamp)
-    fun getShotType(): ShotType = ShotType.valueOf(shotType)
+    fun getShotTypeEnum(): ShotType = ShotType.valueOf(shotType)
 }

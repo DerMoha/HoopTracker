@@ -277,7 +277,7 @@ class ShotRepository(
 
     // Export to CSV
     suspend fun exportToCSV(): File {
-        val shots = shotDao.getRecentShots(10000) // Get all shots
+        val shots = shotDao.getAllShotsList()
         val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
 
         val csv = StringBuilder()

@@ -50,4 +50,7 @@ interface ShotDao {
 
     @Query("SELECT * FROM shots ORDER BY timestamp DESC LIMIT :limit")
     suspend fun getRecentShots(limit: Int): List<Shot>
+
+    @Query("SELECT * FROM shots ORDER BY timestamp DESC")
+    suspend fun getAllShotsList(): List<Shot>
 }

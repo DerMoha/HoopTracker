@@ -12,6 +12,7 @@ import android.os.Bundle
 import android.os.IBinder
 import android.view.View
 import android.widget.Toast
+import com.google.android.material.snackbar.Snackbar
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
@@ -175,6 +176,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun observeData() {
+        viewModel.allShots.observe(this) { shots ->
+            val isEmpty = shots.isEmpty()
+            binding.dashboardEmptyState.visibility = if (isEmpty) View.VISIBLE else View.GONE
+        }
+
         viewModel.stats.observe(this) { stats ->
             updateStatsDisplay(stats)
         }
@@ -214,6 +220,20 @@ class MainActivity : AppCompatActivity() {
                 shareCSVFile(it)
                 viewModel.clearExportFile()
             }
+        }
+
+        viewModel.error.observe(this) { errorMessage ->
+            errorMessage?.let {
+                Snackbar.make(binding.root, it, Snackbar.LENGTH_LONG).show()
+                viewModel.clearError()
+            }
+        }
+
+        viewModel.isExporting.observe(this) { exporting ->
+            binding.btnExport.isEnabled = !exporting
+            binding.btnExport.text = getString(
+                if (exporting) R.string.exporting else R.string.export_shot_data
+            )
         }
     }
 
