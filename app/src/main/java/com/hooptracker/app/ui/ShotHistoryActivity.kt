@@ -54,7 +54,7 @@ class ShotHistoryActivity : AppCompatActivity() {
 
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                 val position = viewHolder.adapterPosition
-                val shot = adapter.getItem(position)
+                val shot = adapter.getItemAt(position)
                 viewModel.deleteShot(shot.id)
 
                 Snackbar.make(binding.root, R.string.shot_deleted, Snackbar.LENGTH_LONG)
