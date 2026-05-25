@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Base application theme -->
+    <!-- Base application theme - dark -->
     <style name="Base.Theme.HoopTracker" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/primary</item>
         <item name="colorPrimaryDark">@color/primary_dark</item>
         <item name="colorAccent">@color/secondary</item>
         <item name="android:forceDarkAllowed">false</item>
-        <item name="android:statusBarColor">?android:attr/colorSurface</item>
-        <item name="android:windowLightStatusBar">true</item>
-        <item name="android:navigationBarColor">?android:attr/colorSurface</item>
-        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:statusBarColor">#1A1A1A</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:navigationBarColor">#1A1A1A</item>
+        <item name="android:windowLightNavigationBar">false</item>
     </style>
 
     <style name="Theme.HoopTracker" parent="Base.Theme.HoopTracker" />
