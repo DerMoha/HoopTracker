@@ -469,7 +469,7 @@ class ShotTrackingService : Service() {
         }
 
         val contentText = if (total > 0) {
-            getString(R.string.tracking_notification_session, totalHits, total, percentage)
+            getString(R.string.tracking_notification_session, totalHits, total, "${percentage}%")
         } else {
             getString(R.string.tracking_notification_listening)
         }

@@ -94,7 +94,7 @@
     <string name="export_shot_data">Export Shot Data</string>
     <string name="voice_tracking_unavailable">Speech recognition is not available on this device.</string>
     <string name="tracking_notification_title">HoopTracker Active</string>
-    <string name="tracking_notification_session">Session: %1$d/%2$d (%3$d%%) • Say 'hit' or 'miss'</string>
+    <string name="tracking_notification_session">Session: %1$d/%2$d (%3$s) • Say 'hit' or 'miss'</string>
     <string name="tracking_notification_listening">Listening for hit or miss</string>
     <string name="notification_stop">Stop</string>
     <string name="notification_undo">Undo</string>
